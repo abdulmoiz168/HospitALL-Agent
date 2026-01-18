@@ -1,0 +1,341 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Sora:wght@400;500;600;700&display=swap");
+
+:root {
+  /* ==========================================================================
+     FONTS
+     ========================================================================== */
+  --font-display: "DM Serif Display", "Georgia", serif;
+  --font-body: "Sora", "Helvetica Neue", sans-serif;
+
+  /* ==========================================================================
+     COLOR PALETTE - Primary (Teal/Green Healthcare Colors)
+     ========================================================================== */
+  --primary-50: #f0fdfa;
+  --primary-100: #ccfbf1;
+  --primary-200: #99f6e4;
+  --primary-300: #5eead4;
+  --primary-400: #2dd4bf;
+  --primary-500: #14b8a6;
+  --primary-600: #0d9488;
+  --primary-700: #0f766e;
+  --primary-800: #115e59;
+  --primary-900: #134e4a;
+  --primary-950: #042f2e;
+
+  /* Primary alias for accent (keeping backward compatibility) */
+  --accent: #1a7f73;
+  --accent-light: #2dd4bf;
+  --accent-dark: #0f766e;
+
+  /* ==========================================================================
+     COLOR PALETTE - Secondary (Slate/Gray)
+     ========================================================================== */
+  --secondary-50: #f8fafc;
+  --secondary-100: #f1f5f9;
+  --secondary-200: #e2e8f0;
+  --secondary-300: #cbd5e1;
+  --secondary-400: #94a3b8;
+  --secondary-500: #64748b;
+  --secondary-600: #475569;
+  --secondary-700: #334155;
+  --secondary-800: #1e293b;
+  --secondary-900: #0f172a;
+  --secondary-950: #020617;
+
+  /* ==========================================================================
+     COLOR PALETTE - Background & Foreground
+     ========================================================================== */
+  --background: #f4fbfb;
+  --background-secondary: #e8f5f4;
+  --background-muted: #f1f5f9;
+  --foreground: #0b1f1a;
+  --foreground-secondary: #334155;
+  --foreground-muted: #64748b;
+  --muted: #3b5d5e;
+
+  /* ==========================================================================
+     COLOR PALETTE - Urgency/Status Colors
+     ========================================================================== */
+  /* Emergency - Red (Critical, immediate attention) */
+  --urgency-emergency: #dc2626;
+  --urgency-emergency-light: #fef2f2;
+  --urgency-emergency-dark: #991b1b;
+  --urgency-emergency-border: #fca5a5;
+
+  /* Urgent - Orange (High priority, needs attention soon) */
+  --urgency-urgent: #ea580c;
+  --urgency-urgent-light: #fff7ed;
+  --urgency-urgent-dark: #c2410c;
+  --urgency-urgent-border: #fdba74;
+
+  /* Routine - Green (Standard priority, scheduled) */
+  --urgency-routine: #16a34a;
+  --urgency-routine-light: #f0fdf4;
+  --urgency-routine-dark: #15803d;
+  --urgency-routine-border: #86efac;
+
+  /* Non-urgent - Blue (Low priority, can wait) */
+  --urgency-non-urgent: #2563eb;
+  --urgency-non-urgent-light: #eff6ff;
+  --urgency-non-urgent-dark: #1d4ed8;
+  --urgency-non-urgent-border: #93c5fd;
+
+  /* ==========================================================================
+     COLOR PALETTE - Semantic Colors
+     ========================================================================== */
+  --success: #16a34a;
+  --success-light: #f0fdf4;
+  --success-dark: #15803d;
+
+  --warning: #eab308;
+  --warning-light: #fefce8;
+  --warning-dark: #ca8a04;
+
+  --error: #dc2626;
+  --error-light: #fef2f2;
+  --error-dark: #991b1b;
+
+  --info: #2563eb;
+  --info-light: #eff6ff;
+  --info-dark: #1d4ed8;
+
+  /* ==========================================================================
+     SPACING SCALE
+     ========================================================================== */
+  --space-xs: 0.25rem;   /* 4px */
+  --space-sm: 0.5rem;    /* 8px */
+  --space-md: 1rem;      /* 16px */
+  --space-lg: 1.5rem;    /* 24px */
+  --space-xl: 2rem;      /* 32px */
+  --space-2xl: 3rem;     /* 48px */
+  --space-3xl: 4rem;     /* 64px */
+  --space-4xl: 6rem;     /* 96px */
+
+  /* ==========================================================================
+     TYPOGRAPHY - Font Sizes
+     ========================================================================== */
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-base: 1rem;     /* 16px */
+  --text-lg: 1.125rem;   /* 18px */
+  --text-xl: 1.25rem;    /* 20px */
+  --text-2xl: 1.5rem;    /* 24px */
+  --text-3xl: 1.875rem;  /* 30px */
+  --text-4xl: 2.25rem;   /* 36px */
+  --text-5xl: 3rem;      /* 48px */
+
+  /* ==========================================================================
+     TYPOGRAPHY - Line Heights
+     ========================================================================== */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* ==========================================================================
+     TYPOGRAPHY - Font Weights
+     ========================================================================== */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* ==========================================================================
+     TYPOGRAPHY - Letter Spacing
+     ========================================================================== */
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+
+  /* ==========================================================================
+     SHADOWS
+     ========================================================================== */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+
+  /* Healthcare-specific card shadows with subtle teal tint */
+  --shadow-card: 0 1px 3px 0 rgb(26 127 115 / 0.08), 0 1px 2px -1px rgb(26 127 115 / 0.08);
+  --shadow-card-hover: 0 4px 6px -1px rgb(26 127 115 / 0.12), 0 2px 4px -2px rgb(26 127 115 / 0.1);
+
+  /* ==========================================================================
+     BORDER RADIUS
+     ========================================================================== */
+  --radius-none: 0;
+  --radius-sm: 0.25rem;  /* 4px */
+  --radius-md: 0.375rem; /* 6px */
+  --radius-lg: 0.5rem;   /* 8px */
+  --radius-xl: 0.75rem;  /* 12px */
+  --radius-2xl: 1rem;    /* 16px */
+  --radius-3xl: 1.5rem;  /* 24px */
+  --radius-full: 9999px;
+
+  /* ==========================================================================
+     TRANSITIONS
+     ========================================================================== */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+  --transition-slower: 500ms ease;
+
+  /* Specific transition properties */
+  --transition-colors: color 200ms ease, background-color 200ms ease, border-color 200ms ease;
+  --transition-transform: transform 200ms ease;
+  --transition-opacity: opacity 200ms ease;
+  --transition-shadow: box-shadow 200ms ease;
+  --transition-all: all 200ms ease;
+
+  /* ==========================================================================
+     Z-INDEX SCALE
+     ========================================================================== */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
+
+  /* ==========================================================================
+     LAYOUT
+     ========================================================================== */
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 80px;
+  --header-height: 64px;
+  --content-max-width: 1280px;
+
+  /* ==========================================================================
+     BORDERS
+     ========================================================================== */
+  --border-width: 1px;
+  --border-color: var(--secondary-200);
+  --border-color-light: var(--secondary-100);
+  --border-color-dark: var(--secondary-300);
+}
+
+/* ==========================================================================
+   DARK MODE (Optional - prepared for future use)
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Uncomment to enable dark mode support
+    --background: #0f172a;
+    --background-secondary: #1e293b;
+    --background-muted: #334155;
+    --foreground: #f8fafc;
+    --foreground-secondary: #e2e8f0;
+    --foreground-muted: #94a3b8;
+    --border-color: var(--secondary-700);
+    --border-color-light: var(--secondary-800);
+    --border-color-dark: var(--secondary-600);
+    */
+  }
+}
+
+/* ==========================================================================
+   BASE STYLES
+   ========================================================================== */
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: var(--font-semibold);
+  line-height: var(--leading-tight);
+}
+
+h1 {
+  font-size: var(--text-4xl);
+}
+
+h2 {
+  font-size: var(--text-3xl);
+}
+
+h3 {
+  font-size: var(--text-2xl);
+}
+
+h4 {
+  font-size: var(--text-xl);
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: var(--transition-colors);
+}
+
+a:hover {
+  color: var(--accent);
+}
+
+/* ==========================================================================
+   UTILITY CLASSES - Focus States (Accessibility)
+   ========================================================================== */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   SCROLLBAR STYLING
+   ========================================================================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--secondary-100);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--secondary-300);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary-400);
+}
+
+/* ==========================================================================
+   SELECTION STYLING
+   ========================================================================== */
+::selection {
+  background: var(--primary-200);
+  color: var(--primary-900);
+}

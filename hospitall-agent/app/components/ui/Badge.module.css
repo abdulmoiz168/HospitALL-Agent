@@ -1,0 +1,83 @@
+/* ==========================================================================
+   Badge Component Styles
+   Uses design tokens from globals.css
+   ========================================================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
+  font-weight: var(--font-medium);
+  line-height: var(--leading-none);
+  white-space: nowrap;
+  border-radius: var(--radius-full);
+  transition: var(--transition-colors);
+}
+
+/* ==========================================================================
+   Size Variants
+   ========================================================================== */
+
+.sm {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+}
+
+.md {
+  padding: calc(var(--space-xs) + 2px) var(--space-md);
+  font-size: var(--text-sm);
+}
+
+/* ==========================================================================
+   Style Variants
+   ========================================================================== */
+
+/* Default - Neutral/gray badge */
+.default {
+  background-color: var(--secondary-100);
+  color: var(--secondary-700);
+  border: var(--border-width) solid var(--secondary-200);
+}
+
+/* Emergency - Critical, immediate attention (red) */
+.emergency {
+  background-color: var(--urgency-emergency-light);
+  color: var(--urgency-emergency-dark);
+  border: var(--border-width) solid var(--urgency-emergency-border);
+}
+
+/* Urgent - High priority, needs attention soon (orange) */
+.urgent {
+  background-color: var(--urgency-urgent-light);
+  color: var(--urgency-urgent-dark);
+  border: var(--border-width) solid var(--urgency-urgent-border);
+}
+
+/* Routine - Standard priority, scheduled (green) */
+.routine {
+  background-color: var(--urgency-routine-light);
+  color: var(--urgency-routine-dark);
+  border: var(--border-width) solid var(--urgency-routine-border);
+}
+
+/* Success - Positive outcome */
+.success {
+  background-color: var(--success-light);
+  color: var(--success-dark);
+  border: var(--border-width) solid var(--urgency-routine-border);
+}
+
+/* Warning - Caution needed */
+.warning {
+  background-color: var(--warning-light);
+  color: var(--warning-dark);
+  border: var(--border-width) solid #fde047;
+}
+
+/* Info - Informational */
+.info {
+  background-color: var(--info-light);
+  color: var(--info-dark);
+  border: var(--border-width) solid var(--urgency-non-urgent-border);
+}

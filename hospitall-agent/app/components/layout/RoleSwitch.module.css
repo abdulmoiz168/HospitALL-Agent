@@ -1,0 +1,112 @@
+/* ==========================================================================
+   RoleSwitch Component Styles
+   Uses design tokens from globals.css
+   ========================================================================== */
+
+.container {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.label {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--foreground-muted);
+  transition: var(--transition-colors);
+  user-select: none;
+}
+
+.labelActive {
+  color: var(--foreground);
+}
+
+.switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-full);
+}
+
+.track {
+  display: flex;
+  align-items: center;
+  width: 44px;
+  height: 24px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background-color: var(--secondary-300);
+  transition: var(--transition-colors);
+}
+
+.switch:hover .track {
+  background-color: var(--secondary-400);
+}
+
+.switchActive .track {
+  background-color: var(--primary-600);
+}
+
+.switchActive:hover .track {
+  background-color: var(--primary-700);
+}
+
+.thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background-color: white;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.thumbActive {
+  transform: translateX(20px);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .label {
+    font-size: var(--text-xs);
+  }
+
+  .track {
+    width: 40px;
+    height: 22px;
+  }
+
+  .thumb {
+    width: 18px;
+    height: 18px;
+  }
+
+  .thumbActive {
+    transform: translateX(18px);
+  }
+}

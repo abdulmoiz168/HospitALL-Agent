@@ -1,0 +1,595 @@
+/* ==========================================================================
+   History Page Styles
+   Uses design tokens from globals.css
+   ========================================================================== */
+
+.historyPage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding-bottom: var(--space-xl);
+}
+
+/* ==========================================================================
+   Page Header
+   ========================================================================== */
+
+.pageHeader {
+  margin-bottom: var(--space-sm);
+}
+
+.pageTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+  margin: 0;
+  line-height: var(--leading-tight);
+}
+
+.pageSubtitle {
+  font-size: var(--text-base);
+  color: var(--foreground-muted);
+  margin: var(--space-xs) 0 0 0;
+}
+
+/* ==========================================================================
+   Summary Cards Section
+   ========================================================================== */
+
+.summarySection {
+  width: 100%;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+}
+
+/* ==========================================================================
+   Filter Section
+   ========================================================================== */
+
+.filterSection {
+  width: 100%;
+}
+
+.filterControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+  align-items: flex-start;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.filterLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--foreground-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.filterButtons {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.filterButton {
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--foreground-secondary);
+  background-color: var(--background);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: var(--transition-all);
+  white-space: nowrap;
+}
+
+.filterButton:hover {
+  background-color: var(--secondary-100);
+  border-color: var(--secondary-300);
+}
+
+.filterButton.active {
+  background-color: var(--primary-600);
+  border-color: var(--primary-600);
+  color: white;
+}
+
+.filterButton.active:hover {
+  background-color: var(--primary-700);
+  border-color: var(--primary-700);
+}
+
+.filterButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Timeline Section
+   ========================================================================== */
+
+.timelineSection {
+  width: 100%;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: var(--border-width) solid var(--border-color-light);
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+  margin: 0;
+}
+
+.eventCount {
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+  font-weight: var(--font-medium);
+}
+
+.timelineContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* ==========================================================================
+   Date Groups
+   ========================================================================== */
+
+.dateGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.dateHeader {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-xs);
+  border-bottom: var(--border-width) solid var(--border-color-light);
+}
+
+.dateLabel {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+}
+
+.fullDate {
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+}
+
+.groupEvents {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==========================================================================
+   Timeline Item
+   ========================================================================== */
+
+.timelineItem {
+  display: flex;
+  gap: var(--space-md);
+  position: relative;
+}
+
+/* ==========================================================================
+   Timeline Line and Icon
+   ========================================================================== */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 32px;
+}
+
+.iconWrapper {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: var(--secondary-100);
+  color: var(--secondary-600);
+  flex-shrink: 0;
+  transition: var(--transition-colors);
+}
+
+.iconWrapper svg {
+  width: 16px;
+  height: 16px;
+}
+
+.connector {
+  width: 2px;
+  flex: 1;
+  min-height: 24px;
+  background-color: var(--border-color);
+  margin-top: var(--space-xs);
+}
+
+.isLast .connector {
+  display: none;
+}
+
+/* ==========================================================================
+   Timeline Event Type Colors
+   ========================================================================== */
+
+/* Visit - Teal/Primary */
+.type-visit .iconWrapper {
+  background-color: var(--primary-100);
+  color: var(--primary-600);
+}
+
+.type-visit.expanded .iconWrapper {
+  background-color: var(--primary-200);
+}
+
+/* Lab Result - Orange/Warning */
+.type-lab_result .iconWrapper {
+  background-color: var(--warning-light);
+  color: var(--warning-dark);
+}
+
+.type-lab_result.expanded .iconWrapper {
+  background-color: #fef3c7;
+}
+
+/* Upload - Blue/Info */
+.type-upload .iconWrapper {
+  background-color: var(--info-light);
+  color: var(--info);
+}
+
+.type-upload.expanded .iconWrapper {
+  background-color: #dbeafe;
+}
+
+/* ==========================================================================
+   Event Content
+   ========================================================================== */
+
+.eventContent {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: var(--space-md);
+}
+
+.eventHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: 100%;
+  padding: var(--space-sm);
+  margin: 0 calc(-1 * var(--space-sm));
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition-all);
+  position: relative;
+}
+
+.eventHeader:hover {
+  background-color: var(--secondary-50);
+}
+
+.eventHeader:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.eventMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.eventDate {
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+  font-weight: var(--font-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.eventTitle {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+  margin: 0;
+  line-height: var(--leading-snug);
+}
+
+.eventSummary {
+  font-size: var(--text-sm);
+  color: var(--foreground-secondary);
+  line-height: var(--leading-relaxed);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.expandIcon {
+  position: absolute;
+  right: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--secondary-400);
+  display: flex;
+  align-items: center;
+  transition: var(--transition-all);
+}
+
+.expandIcon svg {
+  transition: transform var(--transition-normal);
+}
+
+.expandIcon svg.rotated {
+  transform: rotate(180deg);
+}
+
+.eventHeader:hover .expandIcon {
+  color: var(--secondary-600);
+}
+
+/* ==========================================================================
+   Event Details (Expanded)
+   ========================================================================== */
+
+.eventDetails {
+  margin-top: var(--space-sm);
+  padding: var(--space-md);
+  background-color: var(--secondary-50);
+  border-radius: var(--radius-lg);
+  border-left: 3px solid var(--primary-400);
+  animation: slideDown var(--transition-normal);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detailsContent {
+  font-size: var(--text-sm);
+  color: var(--foreground-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.detailsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.detailItem {
+  position: relative;
+  padding-left: var(--space-md);
+}
+
+.detailItem::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.5em;
+  width: 6px;
+  height: 6px;
+  background-color: var(--primary-400);
+  border-radius: var(--radius-full);
+}
+
+.noDetails {
+  margin: 0;
+  font-style: italic;
+  color: var(--foreground-muted);
+}
+
+/* ==========================================================================
+   Empty States
+   ========================================================================== */
+
+.emptyState,
+.noEventsState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  text-align: center;
+  padding: var(--space-2xl);
+}
+
+.emptyIcon,
+.noEventsIcon {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: var(--secondary-100);
+  color: var(--secondary-400);
+  margin-bottom: var(--space-lg);
+}
+
+.emptyTitle,
+.noEventsTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+  margin: 0 0 var(--space-sm) 0;
+}
+
+.emptyDescription,
+.noEventsDescription {
+  font-size: var(--text-base);
+  color: var(--foreground-muted);
+  margin: 0;
+  max-width: 400px;
+}
+
+/* ==========================================================================
+   Responsive Styles
+   ========================================================================== */
+
+/* Tablet breakpoint */
+@media (max-width: 1024px) {
+  .summaryGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .filterControls {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+}
+
+/* Mobile breakpoint */
+@media (max-width: 640px) {
+  .historyPage {
+    gap: var(--space-lg);
+  }
+
+  .pageTitle {
+    font-size: var(--text-2xl);
+  }
+
+  .pageSubtitle {
+    font-size: var(--text-sm);
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .filterButtons {
+    width: 100%;
+  }
+
+  .filterButton {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+
+  .sectionTitle {
+    font-size: var(--text-lg);
+  }
+
+  .dateHeader {
+    flex-direction: column;
+    gap: var(--space-xs);
+    align-items: flex-start;
+  }
+
+  .dateLabel {
+    font-size: var(--text-base);
+  }
+
+  .timeline {
+    width: 28px;
+  }
+
+  .iconWrapper {
+    width: 28px;
+    height: 28px;
+  }
+
+  .iconWrapper svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .eventTitle {
+    font-size: var(--text-sm);
+    padding-right: var(--space-lg);
+  }
+
+  .eventSummary {
+    font-size: var(--text-xs);
+    padding-right: var(--space-lg);
+  }
+
+  .eventDetails {
+    padding: var(--space-sm);
+  }
+
+  .emptyState,
+  .noEventsState {
+    min-height: 250px;
+    padding: var(--space-xl);
+  }
+
+  .emptyIcon,
+  .noEventsIcon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .emptyIcon svg,
+  .noEventsIcon svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .emptyTitle,
+  .noEventsTitle {
+    font-size: var(--text-xl);
+  }
+
+  .emptyDescription,
+  .noEventsDescription {
+    font-size: var(--text-sm);
+  }
+}

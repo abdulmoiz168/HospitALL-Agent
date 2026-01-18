@@ -1,0 +1,61 @@
+/* ==========================================================================
+   Avatar Component Styles
+   Uses design tokens from globals.css
+   ========================================================================== */
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: var(--secondary-200);
+  color: white;
+  font-family: var(--font-body);
+  font-weight: var(--font-semibold);
+  overflow: hidden;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   Size Variants
+   ========================================================================== */
+
+.sm {
+  width: 32px;
+  height: 32px;
+  font-size: var(--text-xs);
+}
+
+.md {
+  width: 40px;
+  height: 40px;
+  font-size: var(--text-sm);
+}
+
+.lg {
+  width: 56px;
+  height: 56px;
+  font-size: var(--text-lg);
+}
+
+.xl {
+  width: 80px;
+  height: 80px;
+  font-size: var(--text-2xl);
+}

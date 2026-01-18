@@ -1,0 +1,392 @@
+/* ==========================================================================
+   Dashboard Page Styles
+   Uses design tokens from globals.css
+   ========================================================================== */
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding-bottom: var(--space-xl);
+}
+
+/* ==========================================================================
+   Welcome Section
+   ========================================================================== */
+
+.welcomeSection {
+  margin-bottom: var(--space-sm);
+}
+
+.welcomeContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.greeting {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+  margin: 0;
+  line-height: var(--leading-tight);
+}
+
+.date {
+  font-size: var(--text-base);
+  color: var(--foreground-muted);
+  margin: 0;
+}
+
+/* ==========================================================================
+   Summary Cards Section
+   ========================================================================== */
+
+.summarySection {
+  width: 100%;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+}
+
+/* ==========================================================================
+   AI Health Insights Section
+   ========================================================================== */
+
+.insightsSection {
+  width: 100%;
+}
+
+.insightsCard {
+  background: linear-gradient(135deg, var(--primary-50) 0%, var(--accent-light) 100%);
+  border: 1px solid var(--primary-200);
+}
+
+.insightsHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--primary-200);
+}
+
+.insightsIconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--primary-600);
+  color: white;
+  border-radius: var(--radius-lg);
+  flex-shrink: 0;
+}
+
+.insightsTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.insightsSubtitle {
+  font-size: var(--text-sm);
+  color: var(--foreground-secondary);
+  margin: 0;
+}
+
+.insightsContent {
+  margin-bottom: var(--space-lg);
+}
+
+.insightsLoading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: white;
+  border-radius: var(--radius-md);
+  color: var(--foreground-secondary);
+  font-size: var(--text-sm);
+}
+
+.insightsSpinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--primary-200);
+  border-top-color: var(--primary-600);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.insightsText {
+  padding: var(--space-md);
+  background: white;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  color: var(--foreground);
+}
+
+.insightsText p {
+  margin: 0 0 var(--space-sm) 0;
+}
+
+.insightsText p:last-child {
+  margin-bottom: 0;
+}
+
+.insightsBranding {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+  text-align: right;
+}
+
+.insightsBranding span {
+  font-weight: var(--font-semibold);
+  color: var(--primary-600);
+}
+
+.insightsEmpty {
+  padding: var(--space-md);
+  background: white;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+  text-align: center;
+}
+
+.insightsPrompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: white;
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.insightsPrompt p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--foreground-secondary);
+  max-width: 400px;
+}
+
+.generateButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.insightsActions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* ==========================================================================
+   Timeline Section
+   ========================================================================== */
+
+.timelineSection {
+  width: 100%;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: var(--border-width) solid var(--border-color-light);
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+  margin: 0;
+}
+
+.viewAllLink {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--primary-600);
+  transition: var(--transition-colors);
+}
+
+.viewAllLink:hover {
+  color: var(--primary-700);
+  text-decoration: underline;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.noEvents {
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+  text-align: center;
+  padding: var(--space-xl) 0;
+}
+
+/* ==========================================================================
+   Quick Actions Section
+   ========================================================================== */
+
+.quickActionsSection {
+  width: 100%;
+}
+
+.quickActionsSection .sectionTitle {
+  margin-bottom: var(--space-lg);
+}
+
+.quickActionsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+}
+
+.actionLink {
+  display: block;
+  text-decoration: none;
+}
+
+.actionButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+
+/* ==========================================================================
+   Empty State
+   ========================================================================== */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+  padding: var(--space-2xl);
+}
+
+.emptyIcon {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: var(--secondary-100);
+  color: var(--secondary-400);
+  margin-bottom: var(--space-lg);
+}
+
+.emptyTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+  margin: 0 0 var(--space-sm) 0;
+}
+
+.emptyDescription {
+  font-size: var(--text-base);
+  color: var(--foreground-muted);
+  margin: 0;
+  max-width: 400px;
+}
+
+/* ==========================================================================
+   Responsive Styles
+   ========================================================================== */
+
+/* Tablet breakpoint */
+@media (max-width: 1024px) {
+  .summaryGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .quickActionsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile breakpoint */
+@media (max-width: 640px) {
+  .dashboard {
+    gap: var(--space-lg);
+  }
+
+  .greeting {
+    font-size: var(--text-2xl);
+  }
+
+  .date {
+    font-size: var(--text-sm);
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .quickActionsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+
+  .sectionTitle {
+    font-size: var(--text-lg);
+  }
+
+  .emptyState {
+    min-height: 300px;
+    padding: var(--space-xl);
+  }
+
+  .emptyIcon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .emptyIcon svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .emptyTitle {
+    font-size: var(--text-xl);
+  }
+
+  .emptyDescription {
+    font-size: var(--text-sm);
+  }
+}

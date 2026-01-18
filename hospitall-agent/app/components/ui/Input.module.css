@@ -1,0 +1,96 @@
+/* ==========================================================================
+   Input Component Styles
+   Uses design tokens from globals.css
+   ========================================================================== */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: 100%;
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--foreground);
+  line-height: var(--leading-normal);
+}
+
+.input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--foreground);
+  background-color: white;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-lg);
+  transition: var(--transition-all);
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--foreground-muted);
+}
+
+.input:hover:not(:disabled) {
+  border-color: var(--secondary-400);
+}
+
+.input:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px var(--primary-100);
+}
+
+.input:focus-visible {
+  outline: none;
+}
+
+/* ==========================================================================
+   Textarea Specific Styles
+   ========================================================================== */
+
+textarea.input {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* ==========================================================================
+   Error State
+   ========================================================================== */
+
+.inputError {
+  border-color: var(--error);
+}
+
+.inputError:hover:not(:disabled) {
+  border-color: var(--error-dark);
+}
+
+.inputError:focus {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px var(--error-light);
+}
+
+.error {
+  font-size: var(--text-sm);
+  color: var(--error);
+  line-height: var(--leading-normal);
+}
+
+/* ==========================================================================
+   Disabled State
+   ========================================================================== */
+
+.inputDisabled {
+  background-color: var(--secondary-100);
+  color: var(--foreground-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.inputDisabled::placeholder {
+  color: var(--secondary-400);
+}

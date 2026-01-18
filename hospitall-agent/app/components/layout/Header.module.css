@@ -1,0 +1,174 @@
+/* ==========================================================================
+   Header Component Styles
+   Uses design tokens from globals.css
+   ========================================================================== */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  padding: 0 var(--space-lg);
+  background-color: var(--background);
+  border-bottom: var(--border-width) solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  flex: 1;
+  min-width: 0;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Brand/Logo
+   ========================================================================== */
+
+.brand {
+  display: none;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.logo {
+  flex-shrink: 0;
+}
+
+.brandName {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Patient Info
+   ========================================================================== */
+
+.patientInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.patientLabel {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+  white-space: nowrap;
+}
+
+.patientName {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   Admin Indicator
+   ========================================================================== */
+
+.adminIndicator {
+  display: flex;
+  align-items: center;
+}
+
+.adminIndicator svg {
+  margin-right: var(--space-xs);
+}
+
+/* ==========================================================================
+   Profile Selector
+   ========================================================================== */
+
+.profileSelector {
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Role Switch
+   ========================================================================== */
+
+.roleSwitch {
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Mobile Role Badge
+   ========================================================================== */
+
+.roleBadgeMobile {
+  display: none;
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .patientLabel {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0 var(--space-md);
+  }
+
+  .brand {
+    display: flex;
+  }
+
+  .patientInfo {
+    display: none;
+  }
+
+  .adminIndicator {
+    display: none;
+  }
+
+  .roleSwitch {
+    display: none;
+  }
+
+  .roleBadgeMobile {
+    display: flex;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 0 var(--space-sm);
+    gap: var(--space-sm);
+  }
+
+  .brand {
+    gap: var(--space-xs);
+  }
+
+  .brandName {
+    display: none;
+  }
+
+  .profileSelector {
+    display: none;
+  }
+}

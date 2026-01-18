@@ -1,0 +1,35 @@
+{
+  "name": "hospitall-agent",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "mastra:dev": "mastra dev --dir mastra",
+    "mastra:build": "mastra build --dir mastra",
+    "mastra:start": "mastra start --dir .mastra/output"
+  },
+  "dependencies": {
+    "@mastra/core": "^0.24.9",
+    "@mastra/libsql": "^0.16.4",
+    "@mastra/memory": "^0.15.13",
+    "next": "16.1.1",
+    "pdf-parse": "^2.4.5",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "tesseract.js": "^7.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/pdf-parse": "^1.1.5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.1",
+    "mastra": "^0.18.9",
+    "typescript": "^5"
+  }
+}

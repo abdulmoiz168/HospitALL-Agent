@@ -1,0 +1,350 @@
+/* ==========================================================================
+   Sidebar Component Styles
+   Uses design tokens from globals.css
+   ========================================================================== */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-width);
+  height: 100vh;
+  background-color: var(--background);
+  border-right: var(--border-width) solid var(--border-color);
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-fixed);
+  transition: width var(--transition-normal), transform var(--transition-normal);
+}
+
+.collapsed {
+  width: var(--sidebar-collapsed-width);
+}
+
+/* ==========================================================================
+   Logo Section
+   ========================================================================== */
+
+.logoSection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md);
+  border-bottom: var(--border-width) solid var(--border-color);
+  min-height: var(--header-height);
+}
+
+.logoLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  text-decoration: none;
+  color: var(--foreground);
+}
+
+.logoLink:hover {
+  color: var(--foreground);
+}
+
+.logoLink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+.logoIcon {
+  flex-shrink: 0;
+}
+
+.logoText {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--foreground);
+  white-space: nowrap;
+}
+
+.collapseToggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  color: var(--foreground-muted);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.collapseToggle:hover {
+  background-color: var(--secondary-100);
+  color: var(--foreground);
+}
+
+.collapseToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.collapseIcon {
+  transition: transform var(--transition-fast);
+}
+
+.collapseIconRotated {
+  transform: rotate(180deg);
+}
+
+/* ==========================================================================
+   Navigation
+   ========================================================================== */
+
+.nav {
+  flex: 1;
+  padding: var(--space-md);
+  overflow-y: auto;
+}
+
+.navList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.navItem {
+  margin: 0;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-lg);
+  color: var(--foreground-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  text-decoration: none;
+  transition: var(--transition-colors);
+  position: relative;
+  white-space: nowrap;
+}
+
+.navLink:hover {
+  background-color: var(--secondary-100);
+  color: var(--foreground);
+}
+
+.navLink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.navLinkActive {
+  background-color: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.navLinkActive:hover {
+  background-color: var(--primary-100);
+  color: var(--primary-700);
+}
+
+.navIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.navLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activeIndicator {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  background-color: var(--primary-600);
+  border-radius: 0 var(--radius-full) var(--radius-full) 0;
+}
+
+/* ==========================================================================
+   Footer / Role Indicator
+   ========================================================================== */
+
+.footer {
+  padding: var(--space-md);
+  border-top: var(--border-width) solid var(--border-color);
+}
+
+.roleIndicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+}
+
+.rolePatient {
+  background-color: var(--success-light);
+}
+
+.roleAdmin {
+  background-color: var(--info-light);
+}
+
+.roleDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.rolePatient .roleDot {
+  background-color: var(--success);
+}
+
+.roleAdmin .roleDot {
+  background-color: var(--info);
+}
+
+.roleText {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--foreground-secondary);
+  white-space: nowrap;
+}
+
+.branding {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--foreground-secondary);
+  text-align: center;
+}
+
+.brandingName {
+  font-weight: var(--font-semibold);
+  color: var(--primary-600);
+}
+
+/* ==========================================================================
+   Mobile Backdrop
+   ========================================================================== */
+
+.backdrop {
+  display: none;
+}
+
+/* ==========================================================================
+   Collapsed State Adjustments
+   ========================================================================== */
+
+.collapsed .logoText,
+.collapsed .navLabel,
+.collapsed .roleText,
+.collapsed .branding {
+  display: none;
+}
+
+.collapsed .logoSection {
+  justify-content: center;
+  padding: var(--space-md) var(--space-sm);
+}
+
+.collapsed .navLink {
+  justify-content: center;
+  padding: var(--space-sm);
+}
+
+.collapsed .roleIndicator {
+  justify-content: center;
+}
+
+.collapsed .activeIndicator {
+  left: 0;
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .collapseToggle {
+    display: flex;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: var(--sidebar-width);
+    transform: translateX(-100%);
+    box-shadow: var(--shadow-xl);
+  }
+
+  .sidebar:not(.collapsed) {
+    transform: translateX(0);
+  }
+
+  .collapsed {
+    width: var(--sidebar-width);
+    transform: translateX(-100%);
+  }
+
+  .backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: -1;
+    animation: fadeIn 200ms ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .collapsed .logoText,
+  .collapsed .navLabel,
+  .collapsed .roleText {
+    display: block;
+  }
+
+  .collapsed .logoSection {
+    justify-content: space-between;
+    padding: var(--space-md);
+  }
+
+  .collapsed .navLink {
+    justify-content: flex-start;
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .collapsed .roleIndicator {
+    justify-content: flex-start;
+  }
+}

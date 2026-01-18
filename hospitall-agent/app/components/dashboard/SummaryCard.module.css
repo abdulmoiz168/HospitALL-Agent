@@ -1,0 +1,186 @@
+/* ==========================================================================
+   SummaryCard Component Styles
+   Uses design tokens from globals.css
+   ========================================================================== */
+
+.summaryCard {
+  width: 100%;
+  min-height: 120px;
+}
+
+.cardInner {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  height: 100%;
+}
+
+.clickable .cardInner {
+  cursor: pointer;
+  transition: var(--transition-all);
+}
+
+.clickable:hover .cardInner {
+  background-color: var(--secondary-50);
+}
+
+.clickable:active .cardInner {
+  background-color: var(--secondary-100);
+}
+
+/* ==========================================================================
+   Icon Container
+   ========================================================================== */
+
+.iconContainer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xl);
+  background-color: var(--secondary-100);
+  color: var(--secondary-600);
+  transition: var(--transition-colors);
+}
+
+.icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* ==========================================================================
+   Content Section
+   ========================================================================== */
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0; /* Prevent text overflow */
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.title {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--foreground-muted);
+  line-height: var(--leading-normal);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.valueSection {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+}
+
+.value {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+  line-height: var(--leading-tight);
+}
+
+.valueLabel {
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+}
+
+.description {
+  font-size: var(--text-sm);
+  color: var(--foreground-secondary);
+  line-height: var(--leading-normal);
+  margin: 0;
+  margin-top: var(--space-xs);
+}
+
+/* ==========================================================================
+   Variant Styles
+   ========================================================================== */
+
+/* Health Variant - Teal/Primary */
+.variant-health .icon {
+  background-color: var(--primary-100);
+  color: var(--primary-600);
+}
+
+.variant-health:hover .icon {
+  background-color: var(--primary-200);
+}
+
+/* Medications Variant - Purple/Info */
+.variant-medications .icon {
+  background-color: var(--info-light);
+  color: var(--info);
+}
+
+.variant-medications:hover .icon {
+  background-color: #dbeafe;
+}
+
+/* Labs Variant - Orange/Warning */
+.variant-labs .icon {
+  background-color: var(--warning-light);
+  color: var(--warning-dark);
+}
+
+.variant-labs:hover .icon {
+  background-color: #fef3c7;
+}
+
+/* Upcoming Variant - Green/Success */
+.variant-upcoming .icon {
+  background-color: var(--success-light);
+  color: var(--success);
+}
+
+.variant-upcoming:hover .icon {
+  background-color: #dcfce7;
+}
+
+/* ==========================================================================
+   Responsive Styles
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .cardInner {
+    padding: var(--space-md);
+    gap: var(--space-sm);
+  }
+
+  .icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .value {
+    font-size: var(--text-2xl);
+  }
+
+  .title {
+    font-size: var(--text-xs);
+  }
+}

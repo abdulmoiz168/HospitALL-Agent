@@ -1,0 +1,153 @@
+/* ==========================================================================
+   Card Component Styles
+   Uses design tokens from globals.css
+   ========================================================================== */
+
+.card {
+  background-color: white;
+  border: var(--border-width) solid var(--border-color);
+  transition: var(--transition-shadow);
+  overflow: hidden;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* ==========================================================================
+   Padding Variants
+   ========================================================================== */
+
+.padding-none {
+  padding: 0;
+}
+
+.padding-sm {
+  padding: var(--space-sm);
+}
+
+.padding-md {
+  padding: var(--space-md);
+}
+
+.padding-lg {
+  padding: var(--space-lg);
+}
+
+/* ==========================================================================
+   Shadow Variants
+   ========================================================================== */
+
+.shadow-none {
+  box-shadow: none;
+}
+
+.shadow-sm {
+  box-shadow: var(--shadow-card);
+}
+
+.shadow-md {
+  box-shadow: var(--shadow-md);
+}
+
+.shadow-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+/* ==========================================================================
+   Border Radius Variants
+   ========================================================================== */
+
+.rounded-sm {
+  border-radius: var(--radius-sm);
+}
+
+.rounded-md {
+  border-radius: var(--radius-md);
+}
+
+.rounded-lg {
+  border-radius: var(--radius-lg);
+}
+
+/* ==========================================================================
+   Card Sections
+   ========================================================================== */
+
+.header {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: var(--border-width) solid var(--border-color-light);
+  background-color: var(--secondary-50);
+  font-weight: var(--font-semibold);
+}
+
+/* Reset padding if card has no padding */
+.padding-none .header {
+  padding: var(--space-md) var(--space-lg);
+}
+
+.body {
+  padding: var(--space-lg);
+}
+
+/* Reset padding if card has no padding */
+.padding-none .body {
+  padding: var(--space-lg);
+}
+
+.footer {
+  padding: var(--space-md) var(--space-lg);
+  border-top: var(--border-width) solid var(--border-color-light);
+  background-color: var(--secondary-50);
+}
+
+/* Reset padding if card has no padding */
+.padding-none .footer {
+  padding: var(--space-md) var(--space-lg);
+}
+
+/* When card has padding, the sections adjust accordingly */
+.padding-sm .header,
+.padding-sm .body,
+.padding-sm .footer {
+  margin: calc(-1 * var(--space-sm));
+  padding: var(--space-sm);
+}
+
+.padding-sm .header {
+  margin-bottom: var(--space-sm);
+}
+
+.padding-sm .footer {
+  margin-top: var(--space-sm);
+}
+
+.padding-md .header,
+.padding-md .body,
+.padding-md .footer {
+  margin: calc(-1 * var(--space-md));
+  padding: var(--space-md);
+}
+
+.padding-md .header {
+  margin-bottom: var(--space-md);
+}
+
+.padding-md .footer {
+  margin-top: var(--space-md);
+}
+
+.padding-lg .header,
+.padding-lg .body,
+.padding-lg .footer {
+  margin: calc(-1 * var(--space-lg));
+  padding: var(--space-lg);
+}
+
+.padding-lg .header {
+  margin-bottom: var(--space-lg);
+}
+
+.padding-lg .footer {
+  margin-top: var(--space-lg);
+}

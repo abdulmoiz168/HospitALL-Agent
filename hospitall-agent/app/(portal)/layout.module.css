@@ -1,0 +1,223 @@
+/* ==========================================================================
+   Portal Layout Styles
+   Shared layout for all portal pages (dashboard, chat, history, etc.)
+   Uses design tokens from globals.css
+   ========================================================================== */
+
+.portalLayout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--background);
+}
+
+/* ==========================================================================
+   Main Wrapper (Sidebar + Content)
+   ========================================================================== */
+
+.mainWrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100vh;
+  margin-left: var(--sidebar-width);
+  transition: margin-left var(--transition-normal);
+}
+
+/* When sidebar is collapsed on tablet/desktop */
+.mainWrapperCollapsed {
+  margin-left: var(--sidebar-collapsed-width);
+}
+
+/* ==========================================================================
+   Header Area
+   ========================================================================== */
+
+.headerArea {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Content Area
+   ========================================================================== */
+
+.contentArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  background-color: var(--background-secondary);
+}
+
+/* Inner content wrapper for max-width constraint */
+.contentInner {
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  flex: 1;
+}
+
+/* ==========================================================================
+   Mobile Menu Toggle Button
+   ========================================================================== */
+
+.mobileMenuToggle {
+  display: none;
+  position: fixed;
+  bottom: var(--space-lg);
+  right: var(--space-lg);
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background-color: var(--primary-600);
+  color: white;
+  border: none;
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  z-index: var(--z-fixed);
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.mobileMenuToggle:hover {
+  background-color: var(--primary-700);
+  transform: scale(1.05);
+}
+
+.mobileMenuToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.mobileMenuToggle:active {
+  transform: scale(0.95);
+}
+
+.menuIcon {
+  width: 24px;
+  height: 24px;
+}
+
+/* ==========================================================================
+   Overlay for Mobile Sidebar
+   ========================================================================== */
+
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: calc(var(--z-fixed) - 1);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+
+.overlayVisible {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ==========================================================================
+   Responsive Adjustments - Tablet
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .mainWrapper {
+    margin-left: var(--sidebar-collapsed-width);
+  }
+
+  .mainWrapperCollapsed {
+    margin-left: var(--sidebar-collapsed-width);
+  }
+
+  /* Show toggle when sidebar is fully hidden */
+  .mainWrapperExpanded {
+    margin-left: var(--sidebar-width);
+  }
+}
+
+/* ==========================================================================
+   Responsive Adjustments - Mobile
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .mainWrapper {
+    margin-left: 0;
+  }
+
+  .mainWrapperCollapsed {
+    margin-left: 0;
+  }
+
+  .mainWrapperExpanded {
+    margin-left: 0;
+  }
+
+  .contentArea {
+    padding: var(--space-md);
+  }
+
+  .mobileMenuToggle {
+    display: flex;
+  }
+
+  .overlay {
+    display: block;
+  }
+}
+
+/* ==========================================================================
+   Responsive Adjustments - Small Mobile
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .contentArea {
+    padding: var(--space-sm);
+  }
+
+  .mobileMenuToggle {
+    bottom: var(--space-md);
+    right: var(--space-md);
+    width: 48px;
+    height: 48px;
+  }
+
+  .menuIcon {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+  .portalLayout {
+    display: block;
+  }
+
+  .mainWrapper {
+    margin-left: 0;
+  }
+
+  .headerArea,
+  .mobileMenuToggle,
+  .overlay {
+    display: none;
+  }
+
+  .contentArea {
+    padding: 0;
+    overflow: visible;
+  }
+}

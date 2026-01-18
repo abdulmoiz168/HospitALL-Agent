@@ -1,0 +1,340 @@
+/* ==========================================================================
+   Document Upload Component Styles
+   ========================================================================== */
+
+/* Modal overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal-backdrop);
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Upload modal container */
+.uploadModal {
+  background: white;
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-2xl);
+  width: 90%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modal header */
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modalTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+}
+
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-lg);
+  color: var(--secondary-500);
+  cursor: pointer;
+  transition: var(--transition-all);
+}
+
+.closeButton:hover {
+  background: var(--secondary-100);
+  color: var(--secondary-700);
+}
+
+.closeIcon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Modal body */
+.modalBody {
+  padding: var(--space-lg);
+}
+
+/* Dropzone area */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-2xl);
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-xl);
+  background: var(--background-muted);
+  cursor: pointer;
+  transition: var(--transition-all);
+  text-align: center;
+}
+
+.dropzone:hover {
+  border-color: var(--primary-400);
+  background: var(--primary-50);
+}
+
+.dropzoneDragging {
+  border-color: var(--primary-500);
+  background: var(--primary-100);
+  border-style: solid;
+}
+
+.dropzoneIcon {
+  width: 48px;
+  height: 48px;
+  color: var(--primary-500);
+}
+
+.dropzoneText {
+  color: var(--foreground);
+  font-weight: var(--font-medium);
+}
+
+.dropzoneHint {
+  color: var(--foreground-muted);
+  font-size: var(--text-sm);
+}
+
+/* Accepted file types */
+.fileTypes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  justify-content: center;
+  margin-top: var(--space-sm);
+}
+
+.fileType {
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--secondary-100);
+  color: var(--secondary-600);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  border-radius: var(--radius-md);
+}
+
+/* Hidden file input */
+.fileInput {
+  display: none;
+}
+
+/* Uploading state */
+.uploadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-xl);
+}
+
+.uploadingFileName {
+  font-weight: var(--font-medium);
+  color: var(--foreground);
+  text-align: center;
+  word-break: break-word;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: var(--secondary-200);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--primary-500);
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease-out;
+}
+
+.progressText {
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+}
+
+/* Success state */
+.successState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-xl);
+}
+
+.successIcon {
+  width: 48px;
+  height: 48px;
+  color: var(--success);
+}
+
+.successText {
+  font-weight: var(--font-medium);
+  color: var(--foreground);
+}
+
+.successHint {
+  color: var(--foreground-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* Error state */
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-xl);
+}
+
+.errorIcon {
+  width: 48px;
+  height: 48px;
+  color: var(--error);
+}
+
+.errorText {
+  font-weight: var(--font-medium);
+  color: var(--error);
+  text-align: center;
+}
+
+.retryButton {
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--primary-600);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: var(--transition-all);
+}
+
+.retryButton:hover {
+  background: var(--primary-700);
+}
+
+/* Modal footer */
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-top: 1px solid var(--border-color);
+  background: var(--background-muted);
+}
+
+.cancelButton {
+  padding: var(--space-sm) var(--space-lg);
+  background: transparent;
+  color: var(--foreground-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: var(--transition-all);
+}
+
+.cancelButton:hover {
+  background: var(--secondary-100);
+  border-color: var(--secondary-300);
+}
+
+.analyzeButton {
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--primary-600);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: var(--transition-all);
+}
+
+.analyzeButton:hover:not(:disabled) {
+  background: var(--primary-700);
+}
+
+.analyzeButton:disabled {
+  background: var(--secondary-300);
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .uploadModal {
+    width: 95%;
+    max-height: 85vh;
+  }
+
+  .modalHeader {
+    padding: var(--space-md);
+  }
+
+  .modalBody {
+    padding: var(--space-md);
+  }
+
+  .dropzone {
+    padding: var(--space-lg);
+  }
+
+  .dropzoneIcon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .modalFooter {
+    padding: var(--space-md);
+    flex-direction: column;
+  }
+
+  .cancelButton,
+  .analyzeButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
