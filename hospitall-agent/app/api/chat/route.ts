@@ -39,9 +39,37 @@ type TriageIntakeState = {
 };
 
 const TRIAGE_STATE_TTL_MS = 30 * 60 * 1000;
+const MAX_TRIAGE_SESSIONS = 1000;
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+const MAX_MESSAGE_LENGTH = 10000;
+
 const triageSessions = new Map<string, TriageIntakeState>();
+let lastCleanupTime = Date.now();
+
+const cleanupExpiredSessions = () => {
+  const now = Date.now();
+  if (now - lastCleanupTime < CLEANUP_INTERVAL_MS) return;
+
+  lastCleanupTime = now;
+  for (const [key, state] of triageSessions.entries()) {
+    if (now - state.updatedAt > TRIAGE_STATE_TTL_MS) {
+      triageSessions.delete(key);
+    }
+  }
+
+  // If still over limit, remove oldest entries
+  if (triageSessions.size > MAX_TRIAGE_SESSIONS) {
+    const entries = [...triageSessions.entries()]
+      .sort((a, b) => a[1].updatedAt - b[1].updatedAt);
+    const toRemove = entries.slice(0, entries.length - MAX_TRIAGE_SESSIONS);
+    for (const [key] of toRemove) {
+      triageSessions.delete(key);
+    }
+  }
+};
 
 const getTriageState = (sessionId: string) => {
+  cleanupExpiredSessions();
   const state = triageSessions.get(sessionId);
   if (!state) return null;
   if (Date.now() - state.updatedAt > TRIAGE_STATE_TTL_MS) {
@@ -52,6 +80,7 @@ const getTriageState = (sessionId: string) => {
 };
 
 const setTriageState = (sessionId: string, state: TriageIntakeState) => {
+  cleanupExpiredSessions();
   triageSessions.set(sessionId, { ...state, updatedAt: Date.now() });
 };
 
@@ -288,6 +317,12 @@ export async function POST(req: Request) {
   const message = body.message?.toString().trim();
   if (!message) {
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
+  }
+  if (message.length > MAX_MESSAGE_LENGTH) {
+    return NextResponse.json(
+      { error: `Message exceeds maximum length of ${MAX_MESSAGE_LENGTH} characters` },
+      { status: 400 }
+    );
   }
 
   const sessionId = body.sessionId?.toString() ?? "local-session";

@@ -56,12 +56,26 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesAreaRef = useRef<HTMLDivElement>(null);
   const welcomeMessageSentRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Constants
+  const FETCH_TIMEOUT_MS = 60000; // 60 second timeout
 
   // Get full name from patient demographics
   const patientFullName = useMemo(() => {
     if (!activePatient) return '';
     return `${activePatient.demographics.firstName} ${activePatient.demographics.lastName}`;
   }, [activePatient]);
+
+  // Cleanup abort controller on unmount or patient change
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, [activePatient?.demographics.id]);
 
   // Initialize with welcome message if no chat history (only once per patient)
   useEffect(() => {
@@ -129,6 +143,18 @@ export default function ChatPage() {
         lowerMessage.includes('specialist');
 
       try {
+        // Cancel any previous request
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+        const signal = abortControllerRef.current.signal;
+
+        // Create timeout
+        const timeoutId = setTimeout(() => {
+          abortControllerRef.current?.abort();
+        }, FETCH_TIMEOUT_MS);
+
         // Call the actual /api/chat endpoint
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -140,7 +166,10 @@ export default function ChatPage() {
             sessionId,
             patientId: activePatient?.demographics.id,
           }),
+          signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           throw new Error(`API error: ${response.status}`);
@@ -195,13 +224,24 @@ export default function ChatPage() {
           setShowDoctorRecommendations(false);
         }
       } catch (error) {
+        // Don't show error message if request was aborted (e.g., patient switched)
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log('Chat request aborted');
+          return;
+        }
+
         console.error('Chat API error:', error);
+
+        // Check if it's a timeout
+        const isTimeout = error instanceof Error && error.message.includes('aborted');
         addChatMessage({
           role: 'assistant',
-          content:
-            'I apologize, but I encountered an error processing your request. Please try again.',
+          content: isTimeout
+            ? 'The request timed out. Please try again.'
+            : 'I apologize, but I encountered an error processing your request. Please try again.',
         });
       } finally {
+        abortControllerRef.current = null;
         setIsLoading(false);
         setIsStreaming(false);
         setStreamingContent('');

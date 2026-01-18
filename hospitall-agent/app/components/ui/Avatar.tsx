@@ -89,13 +89,17 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
       setImageError(true);
     };
 
+    // Use initials for aria-label to avoid exposing full names in accessibility logs
+    // In healthcare apps, full names could be logged by assistive technology
+    const accessibleLabel = alt || (initials ? `Patient ${initials}` : 'User avatar');
+
     return (
       <div
         ref={ref}
         className={avatarClasses}
         style={!showImage ? { backgroundColor } : undefined}
         role="img"
-        aria-label={alt || name || 'User avatar'}
+        aria-label={accessibleLabel}
       >
         {showImage ? (
           <img
