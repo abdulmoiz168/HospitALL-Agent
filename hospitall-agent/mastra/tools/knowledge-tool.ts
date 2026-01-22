@@ -154,9 +154,9 @@ export const knowledgeTool = createTool({
     }
 
     try {
-      // Build query for kb_documents table
+      // Build query for knowledge_base table
       let dbQuery = supabase
-        .from("kb_documents")
+        .from("knowledge_base")
         .select("id, title, category, content, keywords")
         .eq("status", "active"); // Only active documents
 

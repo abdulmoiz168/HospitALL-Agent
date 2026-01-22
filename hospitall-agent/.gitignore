@@ -49,3 +49,4 @@ yarn-error.log*
 next-env.d.ts
 eng.traineddata
 *.traineddata
+.env*.local
