@@ -32,6 +32,7 @@ type ChatRequest = {
   message?: string;
   sessionId?: string;
   patientId?: string;
+  systemPrompt?: string;
 };
 
 const allowLlm = () =>
@@ -280,6 +281,7 @@ export async function POST(req: Request) {
 
   const sessionId = body.sessionId?.toString() ?? (userId || "anonymous-session");
   const patientId = body.patientId?.toString();
+  const customSystemPrompt = body.systemPrompt?.toString();
   const patient = patientId ? getPatientById(patientId) : undefined;
   const { sanitizedText, directIdentifiersDetected } = sanitizeText(message);
   const parsedSignals = {
@@ -511,14 +513,21 @@ export async function POST(req: Request) {
   const agent = mastra.getAgent("hospitallRouter");
   let finalMeta: Record<string, unknown> = { intent, externalAllowed, patientId, conversationLogId };
 
-  const systemMessages: string[] = [
+  const systemMessages: string[] = [];
+
+  // Include custom system prompt if provided
+  if (customSystemPrompt) {
+    systemMessages.push(customSystemPrompt);
+  }
+
+  systemMessages.push(
     "Use the provided structured context. Do not request direct identifiers.",
     `Structured context: ${JSON.stringify({
       structured,
       directIdentifiersDetected,
       extractedSignals: parsedSignals,
-    })}`,
-  ];
+    })}`
+  );
 
   if (patient) {
     systemMessages.push(buildPatientContextMessage(patient));

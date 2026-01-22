@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { usePatient } from '@/lib/hooks';
+import { usePatient, useSettings } from '@/lib/hooks';
 import {
   MessageBubble,
   ChatInput,
@@ -40,6 +40,9 @@ export default function ChatPage() {
     sessionDocuments,
     addSessionDocument,
   } = usePatient();
+
+  // Settings context for system prompt
+  const { settings } = useSettings();
 
   // Local state
   const [inputValue, setInputValue] = useState('');
@@ -165,6 +168,7 @@ export default function ChatPage() {
             message,
             sessionId,
             patientId: activePatient?.demographics.id,
+            systemPrompt: settings.systemPrompt,
           }),
           signal,
         });

@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePatient } from '@/lib/hooks/use-patient';
+import { useSettings } from '@/lib/hooks/use-settings';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
 import { SummaryCard, TimelineEvent, TimelineEventType } from '@/app/components/dashboard';
@@ -148,6 +149,7 @@ function getCurrentDate(): string {
  */
 export default function DashboardPage() {
   const { activePatient } = usePatient();
+  const { settings } = useSettings();
 
   // AI Health Insights state
   const [aiInsights, setAiInsights] = useState<AIInsightsState>({
@@ -195,6 +197,7 @@ Keep each insight to 1-2 sentences. Focus on practical advice I can act on today
           message: prompt,
           sessionId: `insights-${activePatient.demographics.id}-${Date.now()}`,
           patientId: activePatient.demographics.id,
+          systemPrompt: settings.systemPrompt,
         }),
       });
 

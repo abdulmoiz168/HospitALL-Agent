@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { usePatient } from '@/lib/hooks/use-patient';
+import { useSettings } from '@/lib/hooks/use-settings';
 import { DoctorCard } from '@/app/components/chat';
 import { MOCK_DOCTORS } from '@/mastra/data/doctors';
 import type { Doctor, Specialty } from '@/mastra/schemas/doctor';
@@ -204,6 +205,7 @@ const FilterIcon = () => (
  */
 export default function RecommendationsPage() {
   const { activePatient } = usePatient();
+  const { settings } = useSettings();
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -232,6 +234,7 @@ export default function RecommendationsPage() {
           message: `I need help finding a doctor. ${aiQuery}`,
           sessionId: `recommendations-${Date.now()}`,
           patientId: activePatient?.demographics.id,
+          systemPrompt: settings.systemPrompt,
         }),
       });
 

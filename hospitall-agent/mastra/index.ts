@@ -16,6 +16,9 @@ import { patientContextTool } from "./tools/patient-context-tool";
 import { doctorTool } from "./tools/doctor-tool";
 import { knowledgeTool } from "./tools/knowledge-tool";
 
+// Import custom gateway for Vercel AI Gateway
+import { VercelAIGateway } from "./gateways/vercel-ai-gateway";
+
 // Use PostgresStore for Vercel/Supabase deployment, fallback to in-memory for local dev without DB
 const createStorage = () => {
   const dbUrl = process.env.DATABASE_URL;
@@ -28,6 +31,18 @@ const createStorage = () => {
   // For local development without a database, return undefined (Mastra will use in-memory)
   console.warn("DATABASE_URL not set - using in-memory storage (not suitable for production)");
   return undefined;
+};
+
+// Create gateway instances conditionally based on environment
+const createGateways = () => {
+  const gateways: Record<string, InstanceType<typeof VercelAIGateway>> = {};
+
+  // Only register Vercel AI Gateway if API key is configured
+  if (process.env.AI_GATEWAY_API_KEY) {
+    gateways["vercel-ai"] = new VercelAIGateway();
+  }
+
+  return Object.keys(gateways).length > 0 ? gateways : undefined;
 };
 
 export const mastra = new Mastra({
@@ -43,6 +58,7 @@ export const mastra = new Mastra({
     reportWorkflow,
   },
   storage: createStorage(),
+  gateways: createGateways(),
 });
 
 // Export tools for direct access if needed
