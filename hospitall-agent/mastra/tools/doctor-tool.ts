@@ -162,8 +162,8 @@ export const doctorTool = createTool({
     "Recommend doctors based on specialty, symptoms, or medical conditions. Returns doctors with relevance scores based on how well they match the search criteria.",
   inputSchema: DoctorToolInputSchema,
   outputSchema: DoctorToolOutputSchema,
-  execute: async ({ context }) => {
-    const { specialty, symptoms, conditions, acceptingNewPatients } = context;
+  execute: async (inputData) => {
+    const { specialty, symptoms, conditions, acceptingNewPatients } = inputData;
 
     let candidates = [...MOCK_DOCTORS];
 

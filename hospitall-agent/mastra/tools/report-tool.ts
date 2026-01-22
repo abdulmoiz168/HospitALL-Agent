@@ -7,11 +7,11 @@ export const reportTool = createTool({
     "Run the HospitALL report interpretation workflow and return structured findings.",
   inputSchema: ReportInputSchema,
   outputSchema: ReportOutputSchema,
-  execute: async ({ context, mastra }) => {
+  execute: async (inputData, { mastra }) => {
     if (!mastra) throw new Error("Mastra instance not available");
     const workflow = mastra.getWorkflow("reportWorkflow");
-    const run = await workflow.createRunAsync();
-    const result = await run.start({ inputData: context });
+    const run = await workflow.createRun();
+    const result = await run.start({ inputData });
     if (result.status === "success" && "result" in result) {
       return result.result;
     }

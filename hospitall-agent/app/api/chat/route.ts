@@ -12,6 +12,19 @@ import type { TriageOutput } from "@/mastra/schemas/triage";
 import { hasLlmKey } from "@/mastra/utils/llm";
 import { MOCK_PATIENTS } from "@/mastra/data/patients";
 import type { Patient } from "@/mastra/schemas/patient";
+import { getUser } from "@/lib/supabase/server";
+import {
+  getTriageState,
+  setTriageState,
+  clearTriageState,
+  type TriageIntakeState,
+} from "@/lib/services/triage-session-service";
+import {
+  logConversation,
+  logUsage,
+  logError,
+  updateConversationResponse,
+} from "@/lib/services/logging-service";
 
 export const runtime = "nodejs";
 
@@ -24,69 +37,7 @@ type ChatRequest = {
 const allowLlm = () =>
   process.env.HOSPITALL_USE_LLM === "1" && hasLlmKey();
 
-type TriageIntakeState = {
-  text?: string;
-  ageYears?: number;
-  severity?: number;
-  durationHours?: number;
-  pregnant?: boolean;
-  sexAtBirth?: string;
-  awaiting?: "symptoms" | "severity" | "duration" | "age";
-  skipSeverity?: boolean;
-  skipDuration?: boolean;
-  skipAge?: boolean;
-  updatedAt: number;
-};
-
-const TRIAGE_STATE_TTL_MS = 30 * 60 * 1000;
-const MAX_TRIAGE_SESSIONS = 1000;
-const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 const MAX_MESSAGE_LENGTH = 10000;
-
-const triageSessions = new Map<string, TriageIntakeState>();
-let lastCleanupTime = Date.now();
-
-const cleanupExpiredSessions = () => {
-  const now = Date.now();
-  if (now - lastCleanupTime < CLEANUP_INTERVAL_MS) return;
-
-  lastCleanupTime = now;
-  for (const [key, state] of triageSessions.entries()) {
-    if (now - state.updatedAt > TRIAGE_STATE_TTL_MS) {
-      triageSessions.delete(key);
-    }
-  }
-
-  // If still over limit, remove oldest entries
-  if (triageSessions.size > MAX_TRIAGE_SESSIONS) {
-    const entries = [...triageSessions.entries()]
-      .sort((a, b) => a[1].updatedAt - b[1].updatedAt);
-    const toRemove = entries.slice(0, entries.length - MAX_TRIAGE_SESSIONS);
-    for (const [key] of toRemove) {
-      triageSessions.delete(key);
-    }
-  }
-};
-
-const getTriageState = (sessionId: string) => {
-  cleanupExpiredSessions();
-  const state = triageSessions.get(sessionId);
-  if (!state) return null;
-  if (Date.now() - state.updatedAt > TRIAGE_STATE_TTL_MS) {
-    triageSessions.delete(sessionId);
-    return null;
-  }
-  return state;
-};
-
-const setTriageState = (sessionId: string, state: TriageIntakeState) => {
-  cleanupExpiredSessions();
-  triageSessions.set(sessionId, { ...state, updatedAt: Date.now() });
-};
-
-const clearTriageState = (sessionId: string) => {
-  triageSessions.delete(sessionId);
-};
 
 const parseAge = (text: string) => {
   const match =
@@ -172,9 +123,8 @@ const nextTriageQuestion = (state: TriageIntakeState) => {
 
 const runTriage = async (input: TriageInput) => {
   const workflow = mastra.getWorkflow("triageWorkflow");
-  const run = await workflow.createRunAsync();
+  const run = await workflow.createRun();
   const result = await run.start({ inputData: input });
-  // WorkflowResult may have 'result' on success or error info on failure
   if (result.status === "success" && "result" in result) {
     return result.result as TriageOutput;
   }
@@ -183,7 +133,7 @@ const runTriage = async (input: TriageInput) => {
 
 const runRx = async (meds: string[]) => {
   const workflow = mastra.getWorkflow("rxWorkflow");
-  const run = await workflow.createRunAsync();
+  const run = await workflow.createRun();
   const result = await run.start({ inputData: { currentMeds: meds } });
   if (result.status === "success" && "result" in result) {
     return result.result as PrescriptionOutput;
@@ -193,7 +143,7 @@ const runRx = async (meds: string[]) => {
 
 const runReport = async (rawText: string) => {
   const workflow = mastra.getWorkflow("reportWorkflow");
-  const run = await workflow.createRunAsync();
+  const run = await workflow.createRun();
   const result = await run.start({ inputData: { rawText } });
   if (result.status === "success" && "result" in result) {
     return result.result as ReportOutput;
@@ -259,13 +209,11 @@ const getPatientById = (patientId: string): Patient | undefined => {
 const buildPatientContextMessage = (patient: Patient): string => {
   const { demographics, conditions, medications, allergies, labResults } = patient;
 
-  // Calculate age and convert to age band for privacy
   const age = Math.floor(
     (Date.now() - new Date(demographics.dateOfBirth).getTime()) /
       (365.25 * 24 * 60 * 60 * 1000)
   );
 
-  // Convert exact age to age band (de-identified)
   const getAgeBand = (years: number): string => {
     if (years < 18) return "pediatric (under 18)";
     if (years < 40) return "young adult (18-39)";
@@ -292,8 +240,6 @@ const buildPatientContextMessage = (patient: Patient): string => {
     .map((l) => `${l.test}: ${l.value} ${l.unit} [ref: ${l.referenceRange}]${l.status && l.status !== "normal" ? ` (${l.status})` : ""}`)
     .join("; ");
 
-  // NOTE: Patient name and physician name are intentionally excluded to protect PHI
-  // Only de-identified clinical information is sent to external LLM
   return `Current patient context (de-identified):
 - Patient ID: ${demographics.id}
 - Age Band: ${getAgeBand(age)}
@@ -307,6 +253,13 @@ IMPORTANT: Use this de-identified patient context to provide personalized clinic
 };
 
 export async function POST(req: Request) {
+  const startTime = Date.now();
+  let conversationLogId: string | null = null;
+
+  // Get authenticated user (may be null if not logged in)
+  const user = await getUser();
+  const userId = user?.id;
+
   let body: ChatRequest;
   try {
     body = (await req.json()) as ChatRequest;
@@ -325,7 +278,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const sessionId = body.sessionId?.toString() ?? "local-session";
+  const sessionId = body.sessionId?.toString() ?? (userId || "anonymous-session");
   const patientId = body.patientId?.toString();
   const patient = patientId ? getPatientById(patientId) : undefined;
   const { sanitizedText, directIdentifiersDetected } = sanitizeText(message);
@@ -345,13 +298,22 @@ export async function POST(req: Request) {
   const intent = detectIntent(sanitizedText, structured);
   const externalAllowed = allowLlm() && directIdentifiersDetected.length === 0;
 
+  // Log the conversation (PHI-stripped)
+  conversationLogId = await logConversation({
+    userId,
+    sessionId,
+    threadId: sessionId,
+    intent,
+    rawMessage: message,
+  });
+
   if (!externalAllowed) {
-    const existingState = getTriageState(sessionId);
+    const existingState = await getTriageState(sessionId);
     const shouldHandleTriage = intent === "triage" || !!existingState;
 
     if (shouldHandleTriage) {
       if (intent !== "triage" && existingState?.awaiting === undefined) {
-        clearTriageState(sessionId);
+        await clearTriageState(sessionId);
       } else {
         const state: TriageIntakeState = existingState ?? {
           updatedAt: Date.now(),
@@ -397,7 +359,25 @@ export async function POST(req: Request) {
 
         const question = nextTriageQuestion(state);
         if (question) {
-          setTriageState(sessionId, state);
+          await setTriageState(sessionId, state, userId);
+
+          // Log usage for triage question
+          const latencyMs = Date.now() - startTime;
+          await logUsage({
+            userId,
+            sessionId,
+            inputTokens: Math.ceil(message.length / 4),
+            outputTokens: Math.ceil(question.length / 4),
+            latencyMs,
+            endpoint: "/api/chat",
+            intent: "triage",
+            externalLlmUsed: false,
+          });
+
+          if (conversationLogId) {
+            await updateConversationResponse(conversationLogId, question);
+          }
+
           const stream = new ReadableStream({
             start(controller) {
               const encoder = new TextEncoder();
@@ -407,7 +387,7 @@ export async function POST(req: Request) {
               send({ type: "chunk", content: question });
               send({
                 type: "done",
-                meta: { intent: "triage", externalAllowed, triagePending: true },
+                meta: { intent: "triage", externalAllowed, triagePending: true, conversationLogId },
               });
               controller.close();
             },
@@ -429,13 +409,31 @@ export async function POST(req: Request) {
           sexAtBirth: state.sexAtBirth as TriageInput["sexAtBirth"],
           pregnant: state.pregnant,
         });
-        clearTriageState(sessionId);
+        await clearTriageState(sessionId);
 
         const text = formatDeterministicResponse(
           "triage",
           structured,
           payload,
         );
+
+        // Log usage for triage result
+        const latencyMs = Date.now() - startTime;
+        await logUsage({
+          userId,
+          sessionId,
+          inputTokens: Math.ceil(message.length / 4),
+          outputTokens: Math.ceil(text.length / 4),
+          latencyMs,
+          endpoint: "/api/chat",
+          intent: "triage",
+          externalLlmUsed: false,
+        });
+
+        if (conversationLogId) {
+          await updateConversationResponse(conversationLogId, text);
+        }
+
         const stream = new ReadableStream({
           start(controller) {
             const encoder = new TextEncoder();
@@ -445,7 +443,7 @@ export async function POST(req: Request) {
             send({ type: "chunk", content: text });
             send({
               type: "done",
-              meta: { intent: "triage", externalAllowed },
+              meta: { intent: "triage", externalAllowed, conversationLogId },
             });
             controller.close();
           },
@@ -462,8 +460,6 @@ export async function POST(req: Request) {
 
     let payload: unknown = null;
 
-    // Note: By the time we reach here, triage intent was already handled and returned above.
-    // The remaining intents are rx, report, or unknown.
     if (intent === "rx") {
       const meds = parseMedList(sanitizedText);
       if (meds.length > 0) {
@@ -474,6 +470,24 @@ export async function POST(req: Request) {
     }
 
     const text = formatDeterministicResponse(intent, structured, payload);
+
+    // Log usage for deterministic response
+    const latencyMs = Date.now() - startTime;
+    await logUsage({
+      userId,
+      sessionId,
+      inputTokens: Math.ceil(message.length / 4),
+      outputTokens: Math.ceil(text.length / 4),
+      latencyMs,
+      endpoint: "/api/chat",
+      intent,
+      externalLlmUsed: false,
+    });
+
+    if (conversationLogId) {
+      await updateConversationResponse(conversationLogId, text);
+    }
+
     const stream = new ReadableStream({
       start(controller) {
         const encoder = new TextEncoder();
@@ -481,7 +495,7 @@ export async function POST(req: Request) {
           controller.enqueue(encoder.encode(`${JSON.stringify(data)}\n`));
         };
         send({ type: "chunk", content: text });
-        send({ type: "done", meta: { intent, externalAllowed } });
+        send({ type: "done", meta: { intent, externalAllowed, conversationLogId } });
         controller.close();
       },
     });
@@ -495,9 +509,8 @@ export async function POST(req: Request) {
   }
 
   const agent = mastra.getAgent("hospitallRouter");
-  let finalMeta: Record<string, unknown> = { intent, externalAllowed, patientId };
+  let finalMeta: Record<string, unknown> = { intent, externalAllowed, patientId, conversationLogId };
 
-  // Build messages with optional patient context
   const systemMessages: string[] = [
     "Use the provided structured context. Do not request direct identifiers.",
     `Structured context: ${JSON.stringify({
@@ -507,13 +520,12 @@ export async function POST(req: Request) {
     })}`,
   ];
 
-  // Inject patient context if available
   if (patient) {
     systemMessages.push(buildPatientContextMessage(patient));
   }
 
-  // Combine system messages into a single context prompt
   const combinedSystemContext = systemMessages.join("\n\n");
+  let responseText = "";
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -533,22 +545,54 @@ export async function POST(req: Request) {
               thread: sessionId,
             },
             maxSteps: 6,
-            onFinish: ({ finishReason, usage }) => {
+            onFinish: async ({ finishReason, usage }) => {
               finalMeta = { ...finalMeta, finishReason, usage };
+
+              // Log usage with actual token counts
+              const latencyMs = Date.now() - startTime;
+              // Cast usage to access token properties (types may vary between Mastra versions)
+              const usageAny = usage as { promptTokens?: number; completionTokens?: number } | undefined;
+              const inputTokens = usageAny?.promptTokens || Math.ceil(message.length / 4);
+              const outputTokens = usageAny?.completionTokens || Math.ceil(responseText.length / 4);
+
+              await logUsage({
+                userId,
+                sessionId,
+                inputTokens,
+                outputTokens,
+                latencyMs,
+                modelUsed: process.env.HOSPITALL_LLM_MODEL || "google/gemini-3-flash-preview",
+                endpoint: "/api/chat",
+                intent,
+                externalLlmUsed: true,
+              });
+
+              if (conversationLogId) {
+                await updateConversationResponse(conversationLogId, responseText.substring(0, 500));
+              }
             },
           },
         );
 
         for await (const chunk of response.textStream) {
+          responseText += chunk;
           send({ type: "chunk", content: chunk });
         }
       } catch (error) {
-        // Check for rate limit errors
         const errorMessage = error instanceof Error ? error.message : String(error);
         const isRateLimit = errorMessage.includes('429') ||
                            errorMessage.includes('quota') ||
                            errorMessage.includes('RESOURCE_EXHAUSTED') ||
                            errorMessage.includes('rate');
+
+        // Log the error
+        await logError({
+          userId,
+          sessionId,
+          endpoint: "/api/chat",
+          errorType: isRateLimit ? "RATE_LIMIT" : "LLM_ERROR",
+          errorMessage,
+        });
 
         if (isRateLimit) {
           send({

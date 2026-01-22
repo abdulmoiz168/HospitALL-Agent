@@ -1,37 +1,27 @@
 import { NextResponse } from "next/server";
+import { requireAdmin, getUserProfile } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-// In-memory settings store (in production, use a database)
-// This provides a simple key-value store for admin settings
+// Settings interface
 interface AdminSettings {
-  // LLM Configuration
   llmEnabled: boolean;
-  llmProvider: "openai" | "anthropic" | "azure";
+  llmProvider: "openai" | "anthropic" | "azure" | "google";
   llmModel: string;
   maxTokens: number;
-
-  // Feature Flags
   triageEnabled: boolean;
   rxCheckEnabled: boolean;
   reportAnalysisEnabled: boolean;
   knowledgeBaseEnabled: boolean;
-
-  // Privacy & Security
   phiGuardEnabled: boolean;
   auditLoggingEnabled: boolean;
   sessionTimeoutMinutes: number;
-
-  // System Configuration
   maxUploadSizeMB: number;
   supportedFileTypes: string[];
   defaultLanguage: string;
-
-  // Notification Settings
   criticalAlertEmail: string | null;
   dailyDigestEnabled: boolean;
-
-  // Metadata
   lastUpdated: string;
   updatedBy: string | null;
 }
@@ -39,32 +29,24 @@ interface AdminSettings {
 // Default settings
 const DEFAULT_SETTINGS: AdminSettings = {
   llmEnabled: process.env.HOSPITALL_USE_LLM === "1",
-  llmProvider: "openai",
-  llmModel: "gpt-4",
+  llmProvider: "google",
+  llmModel: process.env.HOSPITALL_LLM_MODEL || "google/gemini-3-flash-preview",
   maxTokens: 4096,
-
   triageEnabled: true,
   rxCheckEnabled: true,
   reportAnalysisEnabled: true,
   knowledgeBaseEnabled: true,
-
   phiGuardEnabled: true,
   auditLoggingEnabled: true,
   sessionTimeoutMinutes: 30,
-
   maxUploadSizeMB: 10,
   supportedFileTypes: ["pdf", "docx", "txt", "md", "png", "jpg", "jpeg"],
   defaultLanguage: "en",
-
   criticalAlertEmail: null,
   dailyDigestEnabled: false,
-
   lastUpdated: new Date().toISOString(),
   updatedBy: null,
 };
-
-// In-memory store (simulating database)
-let currentSettings: AdminSettings = { ...DEFAULT_SETTINGS };
 
 // Validation helpers
 const validateSettings = (
@@ -74,9 +56,9 @@ const validateSettings = (
 
   if (
     settings.llmProvider !== undefined &&
-    !["openai", "anthropic", "azure"].includes(settings.llmProvider)
+    !["openai", "anthropic", "azure", "google"].includes(settings.llmProvider)
   ) {
-    errors.push("Invalid LLM provider. Must be openai, anthropic, or azure.");
+    errors.push("Invalid LLM provider. Must be openai, anthropic, azure, or google.");
   }
 
   if (
@@ -113,14 +95,98 @@ const validateSettings = (
   return { valid: errors.length === 0, errors };
 };
 
-// GET - Retrieve current settings
+// Helper to get settings from database
+async function getSettingsFromDb(): Promise<AdminSettings> {
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("admin_settings")
+      .select("key, value")
+      .order("key");
+
+    if (error) {
+      console.error("Error fetching settings:", error);
+      return DEFAULT_SETTINGS;
+    }
+
+    if (!data || data.length === 0) {
+      return DEFAULT_SETTINGS;
+    }
+
+    // Reconstruct settings from key-value pairs
+    const settings: Record<string, unknown> = { ...DEFAULT_SETTINGS };
+    for (const row of data) {
+      settings[row.key] = row.value;
+    }
+
+    return settings as unknown as AdminSettings;
+  } catch (error) {
+    console.error("Error in getSettingsFromDb:", error);
+    return DEFAULT_SETTINGS;
+  }
+}
+
+// Helper to save settings to database
+async function saveSettingsToDb(
+  settings: Partial<AdminSettings>,
+  userId: string
+): Promise<boolean> {
+  try {
+    const supabase = createServiceClient();
+
+    // Upsert each setting as a key-value pair
+    for (const [key, value] of Object.entries(settings)) {
+      if (key === "lastUpdated" || key === "updatedBy") continue;
+
+      const { error } = await supabase.from("admin_settings").upsert(
+        {
+          key,
+          value,
+          updated_by: userId,
+        },
+        { onConflict: "key" }
+      );
+
+      if (error) {
+        console.error(`Error saving setting ${key}:`, error);
+        return false;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in saveSettingsToDb:", error);
+    return false;
+  }
+}
+
+// GET - Retrieve current settings (admin only)
 export async function GET() {
   try {
+    // Require admin access
+    await requireAdmin();
+
+    const settings = await getSettingsFromDb();
+
     return NextResponse.json({
       success: true,
-      settings: currentSettings,
+      settings,
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Authentication required") {
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 }
+        );
+      }
+      if (error.message === "Admin access required") {
+        return NextResponse.json(
+          { error: "Admin access required" },
+          { status: 403 }
+        );
+      }
+    }
     console.error("Error fetching settings:", error);
     return NextResponse.json(
       { error: "Failed to retrieve settings." },
@@ -129,9 +195,12 @@ export async function GET() {
   }
 }
 
-// PUT - Update settings
+// PUT - Update settings (admin only)
 export async function PUT(req: Request) {
   try {
+    // Require admin access
+    const { user } = await requireAdmin();
+
     const body = await req.json();
     const updates = body.settings as Partial<AdminSettings>;
 
@@ -154,20 +223,42 @@ export async function PUT(req: Request) {
     // Prevent updating metadata fields directly
     const { lastUpdated, updatedBy, ...safeUpdates } = updates as AdminSettings;
 
-    // Apply updates
-    currentSettings = {
-      ...currentSettings,
-      ...safeUpdates,
-      lastUpdated: new Date().toISOString(),
-      updatedBy: body.updatedBy || "admin",
-    };
+    // Save to database
+    const success = await saveSettingsToDb(safeUpdates, user.id);
+    if (!success) {
+      return NextResponse.json(
+        { error: "Failed to save settings" },
+        { status: 500 }
+      );
+    }
+
+    // Fetch updated settings
+    const currentSettings = await getSettingsFromDb();
 
     return NextResponse.json({
       success: true,
       message: "Settings updated successfully.",
-      settings: currentSettings,
+      settings: {
+        ...currentSettings,
+        lastUpdated: new Date().toISOString(),
+        updatedBy: user.email || user.id,
+      },
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Authentication required") {
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 }
+        );
+      }
+      if (error.message === "Admin access required") {
+        return NextResponse.json(
+          { error: "Admin access required" },
+          { status: 403 }
+        );
+      }
+    }
     console.error("Error updating settings:", error);
     return NextResponse.json(
       { error: "Failed to update settings." },
@@ -176,9 +267,12 @@ export async function PUT(req: Request) {
   }
 }
 
-// POST - Reset to default settings
+// POST - Reset to default settings (admin only)
 export async function POST(req: Request) {
   try {
+    // Require admin access
+    const { user } = await requireAdmin();
+
     const body = await req.json();
 
     if (body.action !== "reset") {
@@ -188,18 +282,39 @@ export async function POST(req: Request) {
       );
     }
 
-    currentSettings = {
-      ...DEFAULT_SETTINGS,
-      lastUpdated: new Date().toISOString(),
-      updatedBy: body.updatedBy || "admin",
-    };
+    // Save default settings to database
+    const success = await saveSettingsToDb(DEFAULT_SETTINGS, user.id);
+    if (!success) {
+      return NextResponse.json(
+        { error: "Failed to reset settings" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       message: "Settings reset to defaults.",
-      settings: currentSettings,
+      settings: {
+        ...DEFAULT_SETTINGS,
+        lastUpdated: new Date().toISOString(),
+        updatedBy: user.email || user.id,
+      },
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Authentication required") {
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 }
+        );
+      }
+      if (error.message === "Admin access required") {
+        return NextResponse.json(
+          { error: "Admin access required" },
+          { status: 403 }
+        );
+      }
+    }
     console.error("Error resetting settings:", error);
     return NextResponse.json(
       { error: "Failed to reset settings." },

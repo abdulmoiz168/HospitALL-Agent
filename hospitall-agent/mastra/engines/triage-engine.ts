@@ -82,28 +82,28 @@ const buildRecommendedAction = (
 ) => {
   if (level === "emergency") {
     return {
-      primary: "Call emergency services now or go to the nearest emergency department.",
-      secondary: "If you are alone, contact someone nearby and keep your phone accessible.",
+      primary: "CALL EMERGENCY SERVICES IMMEDIATELY: Rescue 1122 (Punjab/KP/AJK) or Edhi 115 (nationwide), or go to the nearest hospital emergency department NOW.",
+      secondary: "If you are alone, contact someone nearby immediately. Do NOT drive yourself - have someone take you or call an ambulance.",
     };
   }
 
   if (level === "urgent_care") {
     return {
-      primary: "Seek urgent care or same-day clinical evaluation.",
-      secondary: "If symptoms worsen, go to the emergency department.",
+      primary: "Seek urgent care or same-day clinical evaluation at a hospital or clinic.",
+      secondary: "If symptoms worsen (especially difficulty breathing, chest pain, or confusion), call Rescue 1122 or Edhi 115 immediately.",
     };
   }
 
   if (level === "primary_care") {
     return {
-      primary: "Schedule a primary care visit within the next few days.",
-      secondary: "Track symptoms and seek sooner care if they worsen.",
+      primary: "Schedule a visit with your doctor within the next few days.",
+      secondary: "Track your symptoms and seek urgent care sooner if they worsen significantly.",
     };
   }
 
   return {
     primary: "Self-care and monitoring are reasonable at this time.",
-    secondary: "Seek medical care if new red-flag symptoms appear.",
+    secondary: "Seek medical care if symptoms worsen or new concerning symptoms appear (chest pain, difficulty breathing, severe pain, confusion).",
   };
 };
 

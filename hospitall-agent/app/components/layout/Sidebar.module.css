@@ -60,8 +60,15 @@
   font-family: var(--font-display);
   font-size: var(--text-xl);
   font-weight: var(--font-bold);
-  color: var(--foreground);
+  color: var(--primary-600);
   white-space: nowrap;
+}
+
+.logoTextCollapsed {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--primary-600);
 }
 
 .collapseToggle {

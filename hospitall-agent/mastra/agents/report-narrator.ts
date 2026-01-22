@@ -4,7 +4,8 @@ import { getHospitallModel } from "../utils/llm";
 const model = getHospitallModel();
 
 export const reportNarrator = new Agent({
-  name: "report-narrator",
+  id: "report-narrator",
+  name: "Report Narrator",
   instructions: [
     "You are HospitALL's lab report narrator.",
     "Use ONLY the provided verified values and interpretations.",

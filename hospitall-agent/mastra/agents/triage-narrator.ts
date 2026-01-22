@@ -4,7 +4,8 @@ import { getHospitallModel } from "../utils/llm";
 const model = getHospitallModel();
 
 export const triageNarrator = new Agent({
-  name: "triage-narrator",
+  id: "triage-narrator",
+  name: "Triage Narrator",
   instructions: [
     "You are HospitALL's clinical guidance narrator.",
     "Use ONLY the provided structured triage decision and citations.",

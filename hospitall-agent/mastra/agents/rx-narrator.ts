@@ -4,7 +4,8 @@ import { getHospitallModel } from "../utils/llm";
 const model = getHospitallModel();
 
 export const rxNarrator = new Agent({
-  name: "rx-narrator",
+  id: "rx-narrator",
+  name: "Rx Narrator",
   instructions: [
     "You are HospitALL's medication safety narrator.",
     "Use ONLY the provided deterministic interaction results.",

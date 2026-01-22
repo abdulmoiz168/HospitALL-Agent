@@ -69,13 +69,15 @@ const KnowledgeBaseIcon = () => (
 );
 
 // Navigation items configuration
+// Patient mode: Dashboard, Consultation, History, Recommendations
+// Admin mode: Knowledge Base, Settings (admin-only pages)
 const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, mode: 'both' },
-  { href: '/consultation', label: 'Consultation', icon: <ChatIcon />, mode: 'both' },
+  { href: '/dashboard', label: 'Dashboard', icon: <DashboardIcon />, mode: 'patient' },
+  { href: '/consultation', label: 'Consultation', icon: <ChatIcon />, mode: 'patient' },
   { href: '/history', label: 'History', icon: <HistoryIcon />, mode: 'patient' },
   { href: '/recommendations', label: 'Recommendations', icon: <RecommendationsIcon />, mode: 'patient' },
-  { href: '/settings', label: 'Settings', icon: <SettingsIcon />, mode: 'admin' },
   { href: '/knowledge-base', label: 'Knowledge Base', icon: <KnowledgeBaseIcon />, mode: 'admin' },
+  { href: '/settings', label: 'Admin Settings', icon: <SettingsIcon />, mode: 'admin' },
 ];
 
 /**
@@ -129,25 +131,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className={sidebarClasses} aria-label="Main navigation">
       {/* Logo Section */}
       <div className={styles.logoSection}>
-        <Link href="/" className={styles.logoLink} aria-label="HospitALL Home">
-          <svg
-            className={styles.logoIcon}
-            width="40"
-            height="40"
-            viewBox="0 0 40 40"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <rect width="40" height="40" rx="10" fill="var(--primary-600)" />
-            <path
-              d="M20 10V30M10 20H30"
-              stroke="white"
-              strokeWidth="4"
-              strokeLinecap="round"
-            />
-          </svg>
-          {!collapsed && (
+        <Link
+          href={isAdmin ? "/knowledge-base" : "/dashboard"}
+          className={styles.logoLink}
+          aria-label={`HospitALL Home - ${isAdmin ? 'Admin' : 'Patient'} Portal`}
+        >
+          {collapsed ? (
+            <span className={styles.logoTextCollapsed}>H</span>
+          ) : (
             <span className={styles.logoText}>HospitALL</span>
           )}
         </Link>

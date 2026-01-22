@@ -314,8 +314,8 @@ export const knowledgeTool = createTool({
     "Search the HospitALL knowledge base for clinical guidelines, treatment protocols, drug information, and medical reference documents.",
   inputSchema: KnowledgeToolInputSchema,
   outputSchema: KnowledgeToolOutputSchema,
-  execute: async ({ context }) => {
-    const { query, category, maxResults } = context;
+  execute: async (inputData) => {
+    const { query, category, maxResults } = inputData;
 
     // Filter by category if specified
     let documents = MOCK_KNOWLEDGE_BASE;

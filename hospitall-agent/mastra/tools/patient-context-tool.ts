@@ -65,8 +65,8 @@ export const patientContextTool = createTool({
     "Get de-identified patient health context including conditions, medications, allergies, and recent lab results. Does NOT return patient names, contact info, or other direct identifiers to protect PHI.",
   inputSchema: PatientContextInputSchema,
   outputSchema: PatientContextOutputSchema,
-  execute: async ({ context }) => {
-    const { patientId } = context;
+  execute: async (inputData) => {
+    const { patientId } = inputData;
 
     // Find patient by ID in mock data
     const patient = MOCK_PATIENTS.find(

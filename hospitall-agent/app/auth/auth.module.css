@@ -1,0 +1,88 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: linear-gradient(
+    135deg,
+    var(--background) 0%,
+    var(--background-secondary) 100%
+  );
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-2xl);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--space-xl);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  color: var(--foreground);
+  margin-bottom: var(--space-sm);
+}
+
+.subtitle {
+  font-size: var(--text-base);
+  color: var(--foreground-muted);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.errorBanner {
+  background: var(--error-light);
+  color: var(--error-dark);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.successBanner {
+  background: var(--success-light);
+  color: var(--success-dark);
+  border: 1px solid var(--success);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.submitButton {
+  margin-top: var(--space-md);
+  width: 100%;
+}
+
+.footer {
+  margin-top: var(--space-xl);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--foreground-muted);
+}
+
+.link {
+  color: var(--accent);
+  font-weight: var(--font-medium);
+  text-decoration: none;
+  transition: var(--transition-colors);
+}
+
+.link:hover {
+  color: var(--accent-dark);
+  text-decoration: underline;
+}

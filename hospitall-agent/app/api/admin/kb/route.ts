@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { requireAdmin, getUser } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { PDFParse } from "pdf-parse";
 import { createWorker } from "tesseract.js";
 
@@ -6,7 +8,6 @@ export const runtime = "nodejs";
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB for KB documents
 
-// Knowledge base document types
 type KBDocumentCategory =
   | "clinical_guidelines"
   | "protocols"
@@ -22,88 +23,14 @@ interface KBDocument {
   category: KBDocumentCategory;
   content: string;
   keywords: string[];
-  fileName: string;
-  fileType: string;
-  fileSize: number;
-  uploadedAt: string;
-  uploadedBy: string;
-  status: "active" | "inactive" | "pending_review";
-  version: number;
-  metadata?: Record<string, unknown>;
+  status: string;
+  uploaded_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-// In-memory knowledge base store (in production, use vector DB or search index)
-const knowledgeBase: Map<string, KBDocument> = new Map();
-
-// Initialize with some default documents
-const initializeDefaultDocs = () => {
-  if (knowledgeBase.size === 0) {
-    // These mirror the mock data from the knowledge-tool
-    const defaultDocs: KBDocument[] = [
-      {
-        id: "kb_001",
-        title: "Type 2 Diabetes Management Guidelines",
-        category: "clinical_guidelines",
-        content: `Type 2 Diabetes Management Overview:
-1. Glycemic Targets: HbA1c goal: <7.0% for most adults
-2. First-line Treatment: Metformin is the preferred initial medication
-3. Monitoring: HbA1c every 3-6 months, annual kidney function tests`,
-        keywords: ["diabetes", "glucose", "hba1c", "metformin", "insulin"],
-        fileName: "diabetes-guidelines.md",
-        fileType: "text/markdown",
-        fileSize: 1024,
-        uploadedAt: "2024-01-01T00:00:00Z",
-        uploadedBy: "system",
-        status: "active",
-        version: 1,
-      },
-      {
-        id: "kb_002",
-        title: "Hypertension Treatment Protocol",
-        category: "clinical_guidelines",
-        content: `Hypertension Management:
-Blood Pressure Targets: General <130/80 mmHg
-First-line: ACE inhibitors, ARBs, CCBs, or thiazide diuretics`,
-        keywords: ["hypertension", "blood pressure", "ace inhibitor", "arb"],
-        fileName: "hypertension-protocol.md",
-        fileType: "text/markdown",
-        fileSize: 856,
-        uploadedAt: "2024-01-01T00:00:00Z",
-        uploadedBy: "system",
-        status: "active",
-        version: 1,
-      },
-      {
-        id: "kb_003",
-        title: "Drug Allergy Cross-Reactivity Guide",
-        category: "drug_information",
-        content: `Penicillin Allergies: Cross-reactivity with cephalosporins ~1-2%
-Sulfa Allergies: Limited cross-reactivity with non-antibiotic sulfonamides`,
-        keywords: ["allergy", "drug allergy", "penicillin", "cross-reactivity"],
-        fileName: "drug-allergies.md",
-        fileType: "text/markdown",
-        fileSize: 512,
-        uploadedAt: "2024-01-01T00:00:00Z",
-        uploadedBy: "system",
-        status: "active",
-        version: 1,
-      },
-    ];
-
-    defaultDocs.forEach((doc) => knowledgeBase.set(doc.id, doc));
-  }
-};
-
-// Initialize on module load
-initializeDefaultDocs();
-
 // Helper functions
-const generateId = (): string => {
-  return `kb_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-};
-
 const extractKeywords = (content: string, title: string): string[] => {
-  // Simple keyword extraction based on common medical terms
   const text = `${title} ${content}`.toLowerCase();
   const medicalTerms = [
     "diabetes",
@@ -133,7 +60,6 @@ const extractKeywords = (content: string, title: string): string[] => {
 
   const found = medicalTerms.filter((term) => text.includes(term));
 
-  // Add custom keywords from content (words that appear frequently)
   const words = text.split(/\W+/).filter((w) => w.length > 4);
   const wordFreq: Record<string, number> = {};
   words.forEach((w) => {
@@ -161,7 +87,6 @@ const extractFromPdf = async (buffer: Buffer): Promise<string> => {
 };
 
 const extractFromImage = async (buffer: Buffer): Promise<string> => {
-  // tesseract.js v7 takes language as parameter to createWorker
   const worker = await createWorker("eng");
   try {
     const { data } = await worker.recognize(buffer);
@@ -171,7 +96,7 @@ const extractFromImage = async (buffer: Buffer): Promise<string> => {
   }
 };
 
-// GET - List all KB documents or search
+// GET - List all KB documents or search (admin only for full access, public for active docs)
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -181,63 +106,75 @@ export async function GET(req: Request) {
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
-    let documents = Array.from(knowledgeBase.values());
+    const supabase = createServiceClient();
+    let queryBuilder = supabase.from("knowledge_base").select("*");
 
-    // Filter by status
-    if (status) {
-      documents = documents.filter((doc) => doc.status === status);
+    // Filter by status (non-admins only see active)
+    const user = await getUser();
+    let isAdmin = false;
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      isAdmin = profile?.role === "admin";
+    }
+
+    if (!isAdmin) {
+      queryBuilder = queryBuilder.eq("status", "active");
+    } else if (status) {
+      queryBuilder = queryBuilder.eq("status", status);
     }
 
     // Filter by category
     if (category) {
-      documents = documents.filter((doc) => doc.category === category);
+      queryBuilder = queryBuilder.eq("category", category);
     }
 
     // Search by query
     if (query) {
-      const queryLower = query.toLowerCase();
-      documents = documents.filter(
-        (doc) =>
-          doc.title.toLowerCase().includes(queryLower) ||
-          doc.content.toLowerCase().includes(queryLower) ||
-          doc.keywords.some((kw) => kw.includes(queryLower))
+      queryBuilder = queryBuilder.or(
+        `title.ilike.%${query}%,content.ilike.%${query}%`
       );
     }
 
-    // Sort by upload date (newest first)
-    documents.sort(
-      (a, b) =>
-        new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-    );
+    // Order and paginate
+    queryBuilder = queryBuilder
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    // Paginate
-    const total = documents.length;
-    const paginatedDocs = documents.slice(offset, offset + limit);
+    const { data: documents, error, count } = await queryBuilder;
 
-    // Return without full content for list view (to reduce payload size)
-    const summaryDocs = paginatedDocs.map((doc) => ({
+    if (error) {
+      console.error("Error fetching KB documents:", error);
+      return NextResponse.json(
+        { error: "Failed to retrieve knowledge base documents." },
+        { status: 500 }
+      );
+    }
+
+    // Return without full content for list view
+    const summaryDocs = (documents || []).map((doc) => ({
       id: doc.id,
       title: doc.title,
       category: doc.category,
       keywords: doc.keywords,
-      fileName: doc.fileName,
-      fileType: doc.fileType,
-      fileSize: doc.fileSize,
-      uploadedAt: doc.uploadedAt,
-      uploadedBy: doc.uploadedBy,
       status: doc.status,
-      version: doc.version,
-      contentPreview: doc.content.substring(0, 200) + (doc.content.length > 200 ? "..." : ""),
+      uploadedAt: doc.created_at,
+      uploadedBy: doc.uploaded_by,
+      contentPreview:
+        doc.content.substring(0, 200) + (doc.content.length > 200 ? "..." : ""),
     }));
 
     return NextResponse.json({
       success: true,
       documents: summaryDocs,
       pagination: {
-        total,
+        total: count || summaryDocs.length,
         limit,
         offset,
-        hasMore: offset + limit < total,
+        hasMore: (count || 0) > offset + limit,
       },
     });
   } catch (error) {
@@ -249,10 +186,14 @@ export async function GET(req: Request) {
   }
 }
 
-// POST - Upload a new KB document
+// POST - Upload a new KB document (admin only)
 export async function POST(req: Request) {
   try {
+    // Require admin access
+    const { user } = await requireAdmin();
+
     const contentType = req.headers.get("content-type") || "";
+    const supabase = createServiceClient();
 
     // Handle file upload
     if (contentType.includes("multipart/form-data")) {
@@ -260,16 +201,11 @@ export async function POST(req: Request) {
       const file = formData.get("file");
       const title = formData.get("title")?.toString();
       const category =
-        (formData.get("category")?.toString() as KBDocumentCategory) ||
-        "other";
-      const uploadedBy = formData.get("uploadedBy")?.toString() || "admin";
+        (formData.get("category")?.toString() as KBDocumentCategory) || "other";
       const customKeywords = formData.get("keywords")?.toString();
 
       if (!file || !(file instanceof File)) {
-        return NextResponse.json(
-          { error: "File is required." },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "File is required." }, { status: 400 });
       }
 
       if (file.size > MAX_UPLOAD_BYTES) {
@@ -312,39 +248,37 @@ export async function POST(req: Request) {
         ? customKeywords.split(",").map((k) => k.trim().toLowerCase())
         : extractKeywords(content, docTitle);
 
-      const doc: KBDocument = {
-        id: generateId(),
-        title: docTitle,
-        category,
-        content,
-        keywords,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        uploadedAt: new Date().toISOString(),
-        uploadedBy,
-        status: "active",
-        version: 1,
-      };
+      const { data, error } = await supabase
+        .from("knowledge_base")
+        .insert({
+          title: docTitle,
+          category,
+          content,
+          keywords,
+          status: "active",
+          uploaded_by: user.id,
+        })
+        .select("id, title, category, keywords, status")
+        .single();
 
-      knowledgeBase.set(doc.id, doc);
+      if (error) {
+        console.error("Error inserting KB document:", error);
+        return NextResponse.json(
+          { error: "Failed to upload document." },
+          { status: 500 }
+        );
+      }
 
       return NextResponse.json({
         success: true,
         message: "Document uploaded successfully.",
-        document: {
-          id: doc.id,
-          title: doc.title,
-          category: doc.category,
-          keywords: doc.keywords,
-          status: doc.status,
-        },
+        document: data,
       });
     }
 
-    // Handle JSON upload (for programmatic content creation)
+    // Handle JSON upload
     const body = await req.json();
-    const { title, category, content, keywords, uploadedBy } = body;
+    const { title, category, content, keywords } = body;
 
     if (!title || !content) {
       return NextResponse.json(
@@ -353,35 +287,47 @@ export async function POST(req: Request) {
       );
     }
 
-    const doc: KBDocument = {
-      id: generateId(),
-      title,
-      category: category || "other",
-      content,
-      keywords: keywords || extractKeywords(content, title),
-      fileName: `${title.toLowerCase().replace(/\s+/g, "-")}.json`,
-      fileType: "application/json",
-      fileSize: content.length,
-      uploadedAt: new Date().toISOString(),
-      uploadedBy: uploadedBy || "admin",
-      status: "active",
-      version: 1,
-    };
+    const { data, error } = await supabase
+      .from("knowledge_base")
+      .insert({
+        title,
+        category: category || "other",
+        content,
+        keywords: keywords || extractKeywords(content, title),
+        status: "active",
+        uploaded_by: user.id,
+      })
+      .select("id, title, category, keywords, status")
+      .single();
 
-    knowledgeBase.set(doc.id, doc);
+    if (error) {
+      console.error("Error inserting KB document:", error);
+      return NextResponse.json(
+        { error: "Failed to create document." },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       message: "Document created successfully.",
-      document: {
-        id: doc.id,
-        title: doc.title,
-        category: doc.category,
-        keywords: doc.keywords,
-        status: doc.status,
-      },
+      document: data,
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Authentication required") {
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 }
+        );
+      }
+      if (error.message === "Admin access required") {
+        return NextResponse.json(
+          { error: "Admin access required" },
+          { status: 403 }
+        );
+      }
+    }
     console.error("Error uploading KB document:", error);
     return NextResponse.json(
       { error: "Failed to upload document." },
@@ -390,9 +336,12 @@ export async function POST(req: Request) {
   }
 }
 
-// PUT - Update a KB document
+// PUT - Update a KB document (admin only)
 export async function PUT(req: Request) {
   try {
+    // Require admin access
+    await requireAdmin();
+
     const body = await req.json();
     const { id, updates } = body;
 
@@ -403,44 +352,71 @@ export async function PUT(req: Request) {
       );
     }
 
-    const existingDoc = knowledgeBase.get(id);
-    if (!existingDoc) {
-      return NextResponse.json(
-        { error: "Document not found." },
-        { status: 404 }
-      );
+    const supabase = createServiceClient();
+
+    // Check if document exists
+    const { data: existingDoc, error: fetchError } = await supabase
+      .from("knowledge_base")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !existingDoc) {
+      return NextResponse.json({ error: "Document not found." }, { status: 404 });
     }
 
-    // Apply updates
-    const updatedDoc: KBDocument = {
-      ...existingDoc,
-      ...updates,
-      id: existingDoc.id, // Prevent ID change
-      uploadedAt: existingDoc.uploadedAt, // Preserve original upload time
-      version: existingDoc.version + 1,
-    };
+    // Prepare updates
+    const safeUpdates: Record<string, unknown> = {};
+    if (updates.title) safeUpdates.title = updates.title;
+    if (updates.category) safeUpdates.category = updates.category;
+    if (updates.content) safeUpdates.content = updates.content;
+    if (updates.status) safeUpdates.status = updates.status;
 
     // Re-extract keywords if content changed
     if (updates.content && updates.content !== existingDoc.content) {
-      updatedDoc.keywords = extractKeywords(
-        updatedDoc.content,
-        updatedDoc.title
+      safeUpdates.keywords = extractKeywords(
+        updates.content,
+        updates.title || existingDoc.title
       );
+    } else if (updates.keywords) {
+      safeUpdates.keywords = updates.keywords;
     }
 
-    knowledgeBase.set(id, updatedDoc);
+    const { data, error } = await supabase
+      .from("knowledge_base")
+      .update(safeUpdates)
+      .eq("id", id)
+      .select("id, title, status")
+      .single();
+
+    if (error) {
+      console.error("Error updating KB document:", error);
+      return NextResponse.json(
+        { error: "Failed to update document." },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       message: "Document updated successfully.",
-      document: {
-        id: updatedDoc.id,
-        title: updatedDoc.title,
-        version: updatedDoc.version,
-        status: updatedDoc.status,
-      },
+      document: data,
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Authentication required") {
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 }
+        );
+      }
+      if (error.message === "Admin access required") {
+        return NextResponse.json(
+          { error: "Admin access required" },
+          { status: 403 }
+        );
+      }
+    }
     console.error("Error updating KB document:", error);
     return NextResponse.json(
       { error: "Failed to update document." },
@@ -449,11 +425,15 @@ export async function PUT(req: Request) {
   }
 }
 
-// DELETE - Remove a KB document
+// DELETE - Remove a KB document (admin only)
 export async function DELETE(req: Request) {
   try {
+    // Require admin access
+    await requireAdmin();
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    const softDelete = searchParams.get("soft") !== "false";
 
     if (!id) {
       return NextResponse.json(
@@ -462,20 +442,34 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const existingDoc = knowledgeBase.get(id);
-    if (!existingDoc) {
-      return NextResponse.json(
-        { error: "Document not found." },
-        { status: 404 }
-      );
+    const supabase = createServiceClient();
+
+    // Check if document exists
+    const { data: existingDoc, error: fetchError } = await supabase
+      .from("knowledge_base")
+      .select("id")
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !existingDoc) {
+      return NextResponse.json({ error: "Document not found." }, { status: 404 });
     }
 
-    // Soft delete by setting status to inactive
-    const softDelete = searchParams.get("soft") !== "false";
-
     if (softDelete) {
-      existingDoc.status = "inactive";
-      knowledgeBase.set(id, existingDoc);
+      // Soft delete - set status to inactive
+      const { error } = await supabase
+        .from("knowledge_base")
+        .update({ status: "inactive" })
+        .eq("id", id);
+
+      if (error) {
+        console.error("Error deactivating KB document:", error);
+        return NextResponse.json(
+          { error: "Failed to deactivate document." },
+          { status: 500 }
+        );
+      }
+
       return NextResponse.json({
         success: true,
         message: "Document deactivated successfully.",
@@ -484,13 +478,36 @@ export async function DELETE(req: Request) {
     }
 
     // Hard delete
-    knowledgeBase.delete(id);
+    const { error } = await supabase.from("knowledge_base").delete().eq("id", id);
+
+    if (error) {
+      console.error("Error deleting KB document:", error);
+      return NextResponse.json(
+        { error: "Failed to delete document." },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       message: "Document permanently deleted.",
       documentId: id,
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Authentication required") {
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 }
+        );
+      }
+      if (error.message === "Admin access required") {
+        return NextResponse.json(
+          { error: "Admin access required" },
+          { status: 403 }
+        );
+      }
+    }
     console.error("Error deleting KB document:", error);
     return NextResponse.json(
       { error: "Failed to delete document." },
