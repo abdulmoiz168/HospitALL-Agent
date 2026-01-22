@@ -249,7 +249,7 @@ const analyzeWithVision = async (
     baseURL: "https://ai-gateway.vercel.sh/v1",
   });
 
-  const model = process.env.HOSPITALL_LLM_MODEL ?? "google/gemini-2.0-flash-001";
+  const model = process.env.HOSPITALL_LLM_MODEL ?? "google/gemini-3.0-flash";
 
   // Convert buffer to base64
   const base64Image = buffer.toString("base64");
