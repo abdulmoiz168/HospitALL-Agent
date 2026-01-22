@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useRole } from '@/lib/hooks';
 import { Badge } from '@/app/components/ui';
 import { RoleSwitch } from './RoleSwitch';
@@ -17,6 +18,24 @@ export interface HeaderProps {
  */
 export const Header: React.FC<HeaderProps> = ({ className = '' }) => {
   const { isPatient, isAdmin, role } = useRole();
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = useCallback(async () => {
+    setIsLoggingOut(true);
+    try {
+      const response = await fetch('/api/auth/signout', {
+        method: 'POST',
+      });
+      if (response.ok) {
+        router.push('/auth/signin');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  }, [router]);
 
   const headerClasses = [styles.header, className].filter(Boolean).join(' ');
 
@@ -109,6 +128,49 @@ export const Header: React.FC<HeaderProps> = ({ className = '' }) => {
             {role}
           </Badge>
         </div>
+
+        {/* Logout Button */}
+        <button
+          type="button"
+          className={styles.logoutButton}
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          aria-label="Sign out"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M16 17L21 12L16 7"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M21 12H9"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className={styles.logoutText}>
+            {isLoggingOut ? 'Signing out...' : 'Sign Out'}
+          </span>
+        </button>
       </div>
     </header>
   );
