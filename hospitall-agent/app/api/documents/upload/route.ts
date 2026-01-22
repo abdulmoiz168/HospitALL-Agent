@@ -1,12 +1,41 @@
 import { NextResponse } from "next/server";
-import { PDFParse } from "pdf-parse";
-import mammoth from "mammoth";
-import { createWorker } from "tesseract.js";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { mastra } from "@/mastra";
 import { sanitizeText } from "@/mastra/guards/phi-guard";
 import type { ReportOutput } from "@/mastra/schemas/report";
+
+// Dynamic imports for native modules that may not work in serverless environments
+// Using 'any' type for modules that may fail to load
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let PDFParse: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let mammoth: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let createWorker: any = null;
+
+// Flag to track if modules loaded successfully
+let modulesLoaded = false;
+let moduleLoadError: string | null = null;
+
+// Lazy load native modules
+const loadNativeModules = async () => {
+  if (modulesLoaded) return;
+  try {
+    const [pdfParseModule, mammothModule, tesseractModule] = await Promise.all([
+      import("pdf-parse"),
+      import("mammoth"),
+      import("tesseract.js"),
+    ]);
+    PDFParse = pdfParseModule.PDFParse;
+    mammoth = mammothModule;
+    createWorker = tesseractModule.createWorker;
+    modulesLoaded = true;
+  } catch (error) {
+    moduleLoadError = error instanceof Error ? error.message : "Failed to load document processing modules";
+    console.error("[documents/upload] Module load error:", error);
+  }
+};
 
 // Supported OCR languages: English, Urdu, Arabic
 const SUPPORTED_LANGUAGES = ["eng", "urd", "ara"] as const;
@@ -79,6 +108,10 @@ const extractFromImageLocal = async (
   language: OcrLanguage = "eng"
 ): Promise<{ text: string; warnings: string[] }> => {
   const warnings: string[] = [];
+  if (!createWorker) {
+    warnings.push("OCR module not available. Try Vision AI mode instead.");
+    return { text: "", warnings };
+  }
   try {
     const worker = await createWorker(language);
     try {
@@ -106,6 +139,11 @@ const extractFromPdf = async (
 ): Promise<{ text: string; method: "pdf" | "pdf_ocr"; warnings: string[] }> => {
   const warnings: string[] = [];
 
+  if (!PDFParse) {
+    warnings.push("PDF processing module not available.");
+    return { text: "", method: "pdf", warnings };
+  }
+
   // Try text extraction with pdf-parse first
   const pdfParser = new PDFParse({ data: new Uint8Array(buffer) });
   const result = await pdfParser.getText();
@@ -120,6 +158,11 @@ const extractFromPdf = async (
   }
 
   // Scanned PDF - use local OCR (no cloud/PHI exposure)
+  if (!createWorker) {
+    warnings.push("Scanned PDF detected but OCR module not available. Text extraction may be limited.");
+    return { text, method: "pdf", warnings };
+  }
+
   warnings.push("Scanned PDF detected. Using local OCR extraction.");
 
   try {
@@ -169,11 +212,22 @@ const extractFromWord = async (
 ): Promise<{ text: string; warnings: string[] }> => {
   const warnings: string[] = [];
 
+  if (!mammoth) {
+    // Fallback for when mammoth isn't available
+    const text = buffer
+      .toString("utf-8")
+      .replace(/[\x00-\x1F\x7F-\xFF]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    warnings.push("Word processing module not available. Basic text extraction used.");
+    return { text, warnings };
+  }
+
   try {
     const result = await mammoth.extractRawText({ buffer });
     const mammothWarnings = result.messages
-      .filter((m) => m.type === "warning")
-      .map((m) => m.message);
+      .filter((m: { type: string }) => m.type === "warning")
+      .map((m: { message: string }) => m.message);
     warnings.push(...mammothWarnings);
     return { text: result.value.trim(), warnings };
   } catch {
@@ -313,6 +367,10 @@ IMPORTANT:
 
 export async function POST(req: Request) {
   console.log("[documents/upload] POST request received");
+
+  // Load native modules (lazy initialization for serverless)
+  // This is non-blocking - we'll handle missing modules per file type
+  await loadNativeModules();
 
   try {
     const formData = await req.formData();

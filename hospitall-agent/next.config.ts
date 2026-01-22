@@ -40,6 +40,8 @@ const nextConfig: NextConfig = {
     "tesseract.js",
     "tesseract.js-core",
     "pdf-to-img",
+    "pdf-parse",
+    "canvas",
   ],
   async headers() {
     return [
