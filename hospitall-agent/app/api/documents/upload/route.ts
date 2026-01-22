@@ -28,6 +28,14 @@ export async function OPTIONS() {
   });
 }
 
+// Explicitly reject GET requests with helpful error
+export async function GET() {
+  return NextResponse.json(
+    { error: "Use POST to upload documents" },
+    { status: 405 }
+  );
+}
+
 // Supported MIME types
 const SUPPORTED_TYPES = {
   pdf: "application/pdf",
