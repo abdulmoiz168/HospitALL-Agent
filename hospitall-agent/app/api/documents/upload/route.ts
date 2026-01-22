@@ -30,6 +30,25 @@ export async function OPTIONS() {
 
 // Explicitly reject GET requests with helpful error
 export async function GET() {
+  console.log("[documents/upload] GET request received - returning 405");
+  return NextResponse.json(
+    { error: "Use POST to upload documents" },
+    { status: 405 }
+  );
+}
+
+// Handle PUT requests
+export async function PUT() {
+  console.log("[documents/upload] PUT request received - returning 405");
+  return NextResponse.json(
+    { error: "Use POST to upload documents" },
+    { status: 405 }
+  );
+}
+
+// Handle DELETE requests
+export async function DELETE() {
+  console.log("[documents/upload] DELETE request received - returning 405");
   return NextResponse.json(
     { error: "Use POST to upload documents" },
     { status: 405 }
@@ -202,8 +221,12 @@ const generateSummary = (
 };
 
 export async function POST(req: Request) {
+  console.log("[documents/upload] POST request received");
+  console.log("[documents/upload] Content-Type:", req.headers.get("content-type"));
+
   try {
     const formData = await req.formData();
+    console.log("[documents/upload] FormData parsed successfully");
     const file = formData.get("file");
     const patientId = formData.get("patientId")?.toString();
     const autoAnalyze = formData.get("autoAnalyze")?.toString() !== "false";
