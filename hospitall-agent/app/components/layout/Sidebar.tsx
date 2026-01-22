@@ -68,6 +68,12 @@ const KnowledgeBaseIcon = () => (
   </svg>
 );
 
+const AnalyticsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M15 17V8M10 17V3M5 17V11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 // Navigation items configuration
 // Patient mode: Dashboard, Consultation, History, Recommendations
 // Admin mode: Knowledge Base, Settings (admin-only pages)
@@ -77,6 +83,7 @@ const navItems: NavItem[] = [
   { href: '/history', label: 'History', icon: <HistoryIcon />, mode: 'patient' },
   { href: '/recommendations', label: 'Recommendations', icon: <RecommendationsIcon />, mode: 'patient' },
   { href: '/knowledge-base', label: 'Knowledge Base', icon: <KnowledgeBaseIcon />, mode: 'admin' },
+  { href: '/analytics', label: 'Analytics', icon: <AnalyticsIcon />, mode: 'admin' },
   { href: '/settings', label: 'Admin Settings', icon: <SettingsIcon />, mode: 'admin' },
 ];
 
