@@ -21,6 +21,7 @@ const createStorage = () => {
   const dbUrl = process.env.DATABASE_URL;
   if (dbUrl) {
     return new PostgresStore({
+      id: "hospitall-storage",
       connectionString: dbUrl,
     });
   }
