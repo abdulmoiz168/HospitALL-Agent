@@ -469,13 +469,49 @@ export async function POST(req: Request) {
       extractionMethod = "text";
       rawText = await extractFromText(buffer);
     } else if (mimeType.startsWith("image/")) {
-      extractionMethod = "local_ocr";
-      const imageResult = await extractFromImageLocal(buffer, language);
-      rawText = imageResult.text;
-      warnings.push(...imageResult.warnings);
+      // Check if OCR is available, otherwise auto-fallback to Vision AI
+      if (!createWorker) {
+        // OCR not available in serverless - auto-use Vision AI
+        warnings.push("Local OCR not available in this environment. Using Vision AI instead.");
+        try {
+          const visionResult = await analyzeWithVision(buffer, mimeType, file.name);
+          rawText = visionResult.text;
+          visionAnalysis = visionResult.analysis;
+          extractionMethod = "vision_ai_fallback";
+          warnings.push(...visionResult.warnings);
+
+          // Return vision analysis result
+          return NextResponse.json({
+            success: true,
+            fileName: file.name,
+            fileType: mimeType,
+            fileSize: file.size,
+            extractionMethod,
+            language,
+            rawText,
+            rawTextContainedPhi: false,
+            summary: visionAnalysis,
+            analysis: null,
+            visionAnalysis,
+            patientId: patientId || null,
+            warnings: warnings.length > 0 ? warnings : undefined,
+            usedVisionAI: true,
+          });
+        } catch (visionError) {
+          console.error("Vision AI fallback error:", visionError);
+          warnings.push("Vision AI fallback also failed. Please try again later.");
+          rawText = "";
+          extractionMethod = "failed";
+        }
+      } else {
+        extractionMethod = "local_ocr";
+        const imageResult = await extractFromImageLocal(buffer, language);
+        rawText = imageResult.text;
+        warnings.push(...imageResult.warnings);
+      }
     }
 
-    if (!rawText) {
+    if (!rawText && extractionMethod !== "failed") {
       warnings.push("No text could be extracted from the document.");
     }
 
