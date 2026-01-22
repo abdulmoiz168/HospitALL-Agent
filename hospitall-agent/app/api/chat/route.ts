@@ -28,8 +28,25 @@ import {
 
 export const runtime = "nodejs";
 
+// CORS headers for cross-origin requests
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+// Handle GET requests with a helpful error
+export async function GET(req: Request) {
+  console.log("[api/chat] GET request received:", req.url);
+  return NextResponse.json(
+    { error: "Use POST to chat with the AI assistant", method: "GET", url: req.url },
+    { status: 405 }
+  );
+}
+
 // Handle CORS preflight requests
-export async function OPTIONS() {
+export async function OPTIONS(req: Request) {
+  console.log("[api/chat] OPTIONS request received:", req.url);
   return new Response(null, {
     status: 204,
     headers: {
@@ -38,6 +55,33 @@ export async function OPTIONS() {
       "Access-Control-Allow-Headers": "Content-Type",
     },
   });
+}
+
+// Handle PUT requests
+export async function PUT(req: Request) {
+  console.log("[api/chat] PUT request received:", req.url);
+  return NextResponse.json(
+    { error: "Use POST to chat with the AI assistant", method: "PUT" },
+    { status: 405 }
+  );
+}
+
+// Handle DELETE requests
+export async function DELETE(req: Request) {
+  console.log("[api/chat] DELETE request received:", req.url);
+  return NextResponse.json(
+    { error: "Use POST to chat with the AI assistant", method: "DELETE" },
+    { status: 405 }
+  );
+}
+
+// Handle PATCH requests
+export async function PATCH(req: Request) {
+  console.log("[api/chat] PATCH request received:", req.url);
+  return NextResponse.json(
+    { error: "Use POST to chat with the AI assistant", method: "PATCH" },
+    { status: 405 }
+  );
 }
 
 type ChatRequest = {
@@ -244,12 +288,14 @@ CRITICAL INSTRUCTIONS:
 };
 
 export async function POST(req: Request) {
+  console.log("[api/chat] POST request received:", req.url, req.method);
   const startTime = Date.now();
   let conversationLogId: string | null = null;
 
   // Get authenticated user (may be null if not logged in)
   const user = await getUser();
   const userId = user?.id;
+  console.log("[api/chat] User authenticated:", !!user, userId);
 
   let body: ChatRequest;
   try {
@@ -388,6 +434,7 @@ export async function POST(req: Request) {
             headers: {
               "Content-Type": "application/x-ndjson",
               "Cache-Control": "no-cache, no-transform",
+              ...corsHeaders,
             },
           });
         }

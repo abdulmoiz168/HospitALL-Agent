@@ -59,6 +59,8 @@ export async function updateSession(request: NextRequest) {
     "/api/auth/signout",
     "/api/auth/callback",
     "/api/cron/cleanup", // Cron jobs use secret token auth
+    "/api/chat", // Allow unauthenticated access - route handles auth internally
+    "/api/documents/upload", // Allow unauthenticated access - route handles auth internally
   ];
 
   const isPublicRoute = publicRoutes.some(

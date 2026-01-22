@@ -32,6 +32,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Prevent trailing slash redirects that can convert POST to GET
+  trailingSlash: false,
   serverExternalPackages: [
     "@mastra/*",
     "@mastra/pg",
