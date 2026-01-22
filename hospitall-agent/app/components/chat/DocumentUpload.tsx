@@ -314,21 +314,20 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
                   strokeLinejoin="round"
                 />
               </svg>
-              <h3 className={styles.confirmTitle}>PHI/PII Privacy Warning</h3>
+              <h3 className={styles.confirmTitle}>Privacy Notice</h3>
               <p className={styles.confirmText}>
-                This option will send your document image directly to a cloud AI service
-                (Google Gemini) for more accurate analysis.
+                This option will send your document image to a cloud AI service for more accurate analysis.
               </p>
               <div className={styles.confirmDetails}>
-                <p><strong>This means:</strong></p>
+                <p><strong>Important:</strong></p>
                 <ul>
-                  <li>Your document (including any patient names, IDs, dates) will be sent to Google&apos;s servers</li>
-                  <li>This is <strong>NOT HIPAA-compliant</strong> without a Business Associate Agreement (BAA)</li>
-                  <li>Use only for test documents or if you have appropriate agreements in place</li>
+                  <li>Your document (including any patient names, IDs, dates) will be sent to external servers</li>
+                  <li>This is <strong>NOT HIPAA-compliant</strong> without appropriate agreements</li>
+                  <li>Use only for <strong>test documents</strong> or if you have a BAA in place</li>
                 </ul>
               </div>
               <p className={styles.confirmQuestion}>
-                Do you want to proceed with Vision AI analysis?
+                Do you want to proceed?
               </p>
             </div>
           )}
@@ -534,12 +533,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
                         aria-hidden="true"
                       >
                         <path
-                          d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        />
-                        <path
-                          d="M9 12L11 14L15 10"
+                          d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
                           stroke="currentColor"
                           strokeWidth="2"
                           strokeLinecap="round"
