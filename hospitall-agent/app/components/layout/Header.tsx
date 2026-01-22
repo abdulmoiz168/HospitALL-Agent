@@ -1,10 +1,9 @@
 'use client';
 
 import React from 'react';
-import { useRole, usePatient } from '@/lib/hooks';
+import { useRole } from '@/lib/hooks';
 import { Badge } from '@/app/components/ui';
 import { RoleSwitch } from './RoleSwitch';
-import { ProfileSelector } from './ProfileSelector';
 import styles from './Header.module.css';
 
 export interface HeaderProps {
@@ -13,45 +12,13 @@ export interface HeaderProps {
 }
 
 /**
- * Top bar with patient name/info when in patient mode.
- * Shows current role indicator.
- * Contains ProfileSelector dropdown and RoleSwitch toggle.
+ * Top bar with role indicator and role switch.
  * Accessible with semantic HTML and ARIA attributes.
  */
 export const Header: React.FC<HeaderProps> = ({ className = '' }) => {
   const { isPatient, isAdmin, role } = useRole();
-  const { activePatient } = usePatient();
 
   const headerClasses = [styles.header, className].filter(Boolean).join(' ');
-
-  // Get patient info for display
-  const getPatientInfo = () => {
-    if (!activePatient) return null;
-
-    const { firstName, lastName, dateOfBirth, sex } = activePatient.demographics;
-    const age = calculateAge(dateOfBirth);
-    const sexLabel = sex === 'female' ? 'F' : 'M';
-
-    return {
-      name: `${firstName} ${lastName}`,
-      details: `${age}${sexLabel}`,
-      conditions: activePatient.conditions.filter(c => c.status === 'active' || c.status === 'chronic').length,
-    };
-  };
-
-  // Calculate age from date of birth
-  const calculateAge = (dob: string): number => {
-    const birthDate = new Date(dob);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-  };
-
-  const patientInfo = getPatientInfo();
 
   return (
     <header className={headerClasses} role="banner">
@@ -78,19 +45,31 @@ export const Header: React.FC<HeaderProps> = ({ className = '' }) => {
           <span className={styles.brandName}>HospitALL</span>
         </div>
 
-        {/* Patient Info - only visible in patient mode */}
-        {isPatient && patientInfo && (
-          <div className={styles.patientInfo}>
-            <span className={styles.patientLabel}>Current Patient:</span>
-            <span className={styles.patientName}>{patientInfo.name}</span>
-            <Badge variant="default" size="sm">
-              {patientInfo.details}
+        {/* Patient Mode Indicator */}
+        {isPatient && (
+          <div className={styles.modeIndicator}>
+            <Badge variant="success" size="sm">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M7 1C4.24 1 2 3.24 2 6C2 8.76 4.24 11 7 11C9.76 11 12 8.76 12 6C12 3.24 9.76 1 7 1Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M7 13C3.69 13 1 11.21 1 9C1 7.9 1.9 7 3 7H11C12.1 7 13 7.9 13 9C13 11.21 10.31 13 7 13Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+              </svg>
+              Patient Mode
             </Badge>
-            {patientInfo.conditions > 0 && (
-              <Badge variant="warning" size="sm">
-                {patientInfo.conditions} active condition{patientInfo.conditions !== 1 ? 's' : ''}
-              </Badge>
-            )}
           </div>
         )}
 
@@ -121,9 +100,6 @@ export const Header: React.FC<HeaderProps> = ({ className = '' }) => {
       </div>
 
       <div className={styles.right}>
-        {/* Profile Selector - only visible in patient mode */}
-        {isPatient && <ProfileSelector className={styles.profileSelector} />}
-
         {/* Role Switch */}
         <RoleSwitch className={styles.roleSwitch} />
 

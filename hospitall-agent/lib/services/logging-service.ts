@@ -70,6 +70,7 @@ export async function logConversation(
 ): Promise<string | null> {
   try {
     const supabase = createServiceClient();
+    if (!supabase) return null; // Logging disabled - no service key
     const { sanitizedText } = sanitizeText(input.rawMessage);
 
     const { data, error } = await supabase
@@ -103,6 +104,7 @@ export async function logConversation(
 export async function logUsage(input: UsageMetricsInput): Promise<boolean> {
   try {
     const supabase = createServiceClient();
+    if (!supabase) return false; // Logging disabled - no service key
     const totalTokens = input.inputTokens + input.outputTokens;
     const estimatedCostCents = estimateCost(
       input.inputTokens,
@@ -142,6 +144,7 @@ export async function logUsage(input: UsageMetricsInput): Promise<boolean> {
 export async function logError(input: ErrorLogInput): Promise<boolean> {
   try {
     const supabase = createServiceClient();
+    if (!supabase) return false; // Logging disabled - no service key
 
     // Sanitize error message to remove any PHI
     const { sanitizedText: sanitizedError } = sanitizeText(input.errorMessage);
@@ -186,6 +189,7 @@ export async function logError(input: ErrorLogInput): Promise<boolean> {
 export async function logFeedback(input: FeedbackInput): Promise<boolean> {
   try {
     const supabase = createServiceClient();
+    if (!supabase) return false; // Logging disabled - no service key
 
     // Sanitize comment if provided
     let sanitizedComment: string | null = null;
@@ -222,6 +226,7 @@ export async function updateConversationResponse(
 ): Promise<boolean> {
   try {
     const supabase = createServiceClient();
+    if (!supabase) return false; // Logging disabled - no service key
 
     // Sanitize response summary
     const { sanitizedText } = sanitizeText(responseSummary);

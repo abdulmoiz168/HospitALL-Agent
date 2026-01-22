@@ -3,14 +3,14 @@ import { z } from "zod";
 import { DoctorSchema, SpecialtyEnum, Specialty } from "../schemas/doctor";
 import { MOCK_DOCTORS } from "../data/doctors";
 
-// Mapping from conditions to relevant specialties
+// Mapping from conditions to relevant specialties (simplified to 3 specialties for demo)
 const conditionToSpecialtyMap: Record<string, Specialty[]> = {
   // Cardiovascular
   "coronary artery disease": ["cardiology"],
   "heart disease": ["cardiology"],
   "heart failure": ["cardiology"],
-  hypertension: ["cardiology", "internal_medicine", "nephrology"],
-  "high blood pressure": ["cardiology", "internal_medicine", "nephrology"],
+  hypertension: ["cardiology", "internal_medicine"],
+  "high blood pressure": ["cardiology", "internal_medicine"],
   "myocardial infarction": ["cardiology"],
   "heart attack": ["cardiology"],
   arrhythmia: ["cardiology"],
@@ -21,78 +21,59 @@ const conditionToSpecialtyMap: Record<string, Specialty[]> = {
   diabetes: ["endocrinology", "internal_medicine"],
   "type 2 diabetes": ["endocrinology", "internal_medicine"],
   "type 1 diabetes": ["endocrinology"],
-  "gestational diabetes": ["endocrinology", "ob_gyn"],
+  "gestational diabetes": ["endocrinology"],
   "thyroid disorder": ["endocrinology"],
   hypothyroidism: ["endocrinology"],
   hyperthyroidism: ["endocrinology"],
-  pcos: ["endocrinology", "ob_gyn"],
-  "polycystic ovary syndrome": ["endocrinology", "ob_gyn"],
-  osteoporosis: ["endocrinology", "rheumatology"],
+  pcos: ["endocrinology"],
+  "polycystic ovary syndrome": ["endocrinology"],
+  osteoporosis: ["endocrinology"],
 
-  // Kidney
-  "chronic kidney disease": ["nephrology"],
-  ckd: ["nephrology"],
-  "kidney disease": ["nephrology"],
-  "renal failure": ["nephrology"],
-
-  // Respiratory
-  asthma: ["pulmonology"],
-  copd: ["pulmonology"],
-  pneumonia: ["pulmonology", "internal_medicine"],
-  "sleep apnea": ["pulmonology"],
-  bronchitis: ["pulmonology", "family_medicine"],
-
-  // OB/GYN
-  pregnancy: ["ob_gyn"],
-  "prenatal care": ["ob_gyn"],
-  "high-risk pregnancy": ["ob_gyn"],
-  menopause: ["ob_gyn"],
-  endometriosis: ["ob_gyn"],
-
-  // Mental Health
-  anxiety: ["psychiatry"],
-  depression: ["psychiatry"],
-  "anxiety disorder": ["psychiatry"],
-  ptsd: ["psychiatry"],
-
-  // General
-  "general checkup": ["family_medicine", "internal_medicine"],
-  "preventive care": ["family_medicine", "internal_medicine"],
+  // Internal Medicine (general conditions)
+  "chronic kidney disease": ["internal_medicine"],
+  ckd: ["internal_medicine"],
+  "kidney disease": ["internal_medicine"],
+  asthma: ["internal_medicine"],
+  copd: ["internal_medicine"],
+  pneumonia: ["internal_medicine"],
+  bronchitis: ["internal_medicine"],
+  "general checkup": ["internal_medicine"],
+  "preventive care": ["internal_medicine"],
 };
 
-// Mapping from symptoms to relevant specialties
+// Mapping from symptoms to relevant specialties (simplified to 3 specialties for demo)
 const symptomToSpecialtyMap: Record<string, Specialty[]> = {
   // Cardiac symptoms
-  "chest pain": ["cardiology", "pulmonology"],
+  "chest pain": ["cardiology", "internal_medicine"],
   palpitations: ["cardiology"],
-  "shortness of breath": ["cardiology", "pulmonology"],
-  "leg swelling": ["cardiology", "nephrology"],
-  dizziness: ["cardiology", "neurology"],
-  fainting: ["cardiology", "neurology"],
+  "shortness of breath": ["cardiology", "internal_medicine"],
+  "leg swelling": ["cardiology", "internal_medicine"],
+  dizziness: ["cardiology", "internal_medicine"],
+  fainting: ["cardiology", "internal_medicine"],
 
-  // Respiratory symptoms
-  cough: ["pulmonology", "family_medicine"],
-  wheezing: ["pulmonology"],
-  "breathing difficulty": ["pulmonology", "cardiology"],
+  // Respiratory symptoms (route to internal medicine)
+  cough: ["internal_medicine"],
+  wheezing: ["internal_medicine"],
+  "breathing difficulty": ["cardiology", "internal_medicine"],
 
   // Metabolic symptoms
-  "frequent urination": ["endocrinology", "nephrology"],
+  "frequent urination": ["endocrinology", "internal_medicine"],
   "excessive thirst": ["endocrinology"],
   fatigue: ["endocrinology", "internal_medicine"],
-  "weight loss": ["endocrinology", "gastroenterology"],
+  "weight loss": ["endocrinology", "internal_medicine"],
   "weight gain": ["endocrinology"],
 
-  // GI symptoms
-  "abdominal pain": ["gastroenterology", "family_medicine"],
-  nausea: ["gastroenterology", "family_medicine"],
-  vomiting: ["gastroenterology", "family_medicine"],
+  // GI symptoms (route to internal medicine)
+  "abdominal pain": ["internal_medicine"],
+  nausea: ["internal_medicine"],
+  vomiting: ["internal_medicine"],
 
-  // General symptoms
-  fever: ["internal_medicine", "family_medicine"],
-  headache: ["neurology", "family_medicine"],
-  "joint pain": ["rheumatology", "orthopedics"],
-  "back pain": ["orthopedics", "family_medicine"],
-  rash: ["dermatology"],
+  // General symptoms (route to internal medicine)
+  fever: ["internal_medicine"],
+  headache: ["internal_medicine"],
+  "joint pain": ["internal_medicine"],
+  "back pain": ["internal_medicine"],
+  rash: ["internal_medicine"],
 };
 
 // Input schema for doctor recommendation tool

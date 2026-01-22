@@ -32,7 +32,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@mastra/*", "@mastra/pg"],
+  serverExternalPackages: [
+    "@mastra/*",
+    "@mastra/pg",
+    "tesseract.js",
+    "tesseract.js-core",
+    "pdf-to-img",
+  ],
   async headers() {
     return [
       {

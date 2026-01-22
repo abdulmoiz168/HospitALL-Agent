@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/supabase/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClientRequired } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -66,7 +66,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const days = parseInt(url.searchParams.get("days") || "7", 10);
 
-    const supabase = createServiceClient();
+    const supabase = createServiceClientRequired();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString();

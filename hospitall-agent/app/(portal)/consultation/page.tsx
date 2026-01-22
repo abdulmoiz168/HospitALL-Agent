@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import Link from 'next/link';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { usePatient, useSettings } from '@/lib/hooks';
 import {
   MessageBubble,
@@ -19,26 +18,19 @@ import styles from './page.module.css';
 const generateSessionId = () => `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
 /**
- * Enhanced Chat Page for the HospitALL Portal
+ * Chat Page for the HospitALL Portal
  *
- * Features:
- * - Patient context indicator at the top
- * - Chat messages with user/assistant bubbles and timestamps
- * - Real-time streaming from /api/chat endpoint
- * - Document upload functionality with analysis
- * - Quick action chips
- * - Doctor recommendation cards (inline)
- * - Auto-scroll to latest messages
+ * The logged-in user is the patient - no patient selection needed.
  */
 export default function ChatPage() {
-  // Patient context from global state
+  // Chat state from global context
   const {
-    activePatient,
     chatHistory,
     addChatMessage,
     clearChatHistory,
     sessionDocuments,
     addSessionDocument,
+    clearSessionDocuments,
   } = usePatient();
 
   // Settings context for system prompt
@@ -54,6 +46,12 @@ export default function ChatPage() {
   const [showDoctorRecommendations, setShowDoctorRecommendations] = useState(false);
   const [recommendedDoctors, setRecommendedDoctors] = useState<Doctor[]>([]);
   const [sessionId] = useState(() => generateSessionId());
+  // Store document context for follow-up questions
+  const [documentContext, setDocumentContext] = useState<{
+    fileName?: string;
+    rawText: string;
+    summary?: string;
+  } | null>(null);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -64,13 +62,7 @@ export default function ChatPage() {
   // Constants
   const FETCH_TIMEOUT_MS = 60000; // 60 second timeout
 
-  // Get full name from patient demographics
-  const patientFullName = useMemo(() => {
-    if (!activePatient) return '';
-    return `${activePatient.demographics.firstName} ${activePatient.demographics.lastName}`;
-  }, [activePatient]);
-
-  // Cleanup abort controller on unmount or patient change
+  // Cleanup abort controller on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -78,22 +70,18 @@ export default function ChatPage() {
         abortControllerRef.current = null;
       }
     };
-  }, [activePatient?.demographics.id]);
+  }, []);
 
-  // Initialize with welcome message if no chat history (only once per patient)
+  // Initialize with welcome message if no chat history
   useEffect(() => {
-    if (chatHistory.length === 0 && activePatient && !welcomeMessageSentRef.current) {
+    if (chatHistory.length === 0 && !welcomeMessageSentRef.current) {
       welcomeMessageSentRef.current = true;
       addChatMessage({
         role: 'assistant',
-        content: `Hello ${activePatient.demographics.firstName}! I'm your HospitALL health assistant. How can I help you today? You can describe your symptoms, ask about medications, or upload medical documents for analysis.`,
+        content: `Hello! I'm your HospitALL health assistant. How can I help you today? You can describe your symptoms, ask about medications, or upload medical documents for analysis.`,
       });
     }
-    // Reset the ref when patient changes
-    if (!activePatient) {
-      welcomeMessageSentRef.current = false;
-    }
-  }, [activePatient, chatHistory.length, addChatMessage]);
+  }, [chatHistory.length, addChatMessage]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -167,8 +155,9 @@ export default function ChatPage() {
           body: JSON.stringify({
             message,
             sessionId,
-            patientId: activePatient?.demographics.id,
             systemPrompt: settings.systemPrompt,
+            // Include document context if available for follow-up questions
+            documentContext: documentContext || undefined,
           }),
           signal,
         });
@@ -188,6 +177,7 @@ export default function ChatPage() {
         const decoder = new TextDecoder();
         let accumulatedContent = '';
         let meta: Record<string, unknown> = {};
+        let lineBuffer = ''; // Buffer for incomplete lines spanning chunks
 
         // Read the stream
         while (true) {
@@ -195,9 +185,15 @@ export default function ChatPage() {
           if (done) break;
 
           const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n').filter(Boolean);
+          // Prepend any incomplete line from previous chunk
+          const text = lineBuffer + chunk;
+          const lines = text.split('\n');
+
+          // Last element might be incomplete - save it for next iteration
+          lineBuffer = lines.pop() || '';
 
           for (const line of lines) {
+            if (!line.trim()) continue;
             try {
               const parsed = JSON.parse(line);
 
@@ -208,8 +204,23 @@ export default function ChatPage() {
                 meta = parsed.meta || {};
               }
             } catch {
-              // Skip malformed JSON lines
+              // Skip malformed JSON lines (shouldn't happen with proper buffering)
+              console.warn('Failed to parse NDJSON line:', line.substring(0, 100));
             }
+          }
+        }
+
+        // Process any remaining buffered content
+        if (lineBuffer.trim()) {
+          try {
+            const parsed = JSON.parse(lineBuffer);
+            if (parsed.type === 'chunk' && parsed.content) {
+              accumulatedContent += parsed.content;
+            } else if (parsed.type === 'done') {
+              meta = parsed.meta || {};
+            }
+          } catch {
+            // Final buffer wasn't valid JSON
           }
         }
 
@@ -251,7 +262,7 @@ export default function ChatPage() {
         setStreamingContent('');
       }
     },
-    [isLoading, isStreaming, addChatMessage, sessionId, activePatient]
+    [isLoading, isStreaming, addChatMessage, sessionId, documentContext, settings.systemPrompt]
   );
 
   // Handle document upload - uploads to /api/documents/upload
@@ -259,7 +270,6 @@ export default function ChatPage() {
     async (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('patientId', activePatient?.demographics.id || '');
       formData.append('autoAnalyze', 'false'); // Just upload, don't auto-analyze
 
       try {
@@ -282,7 +292,7 @@ export default function ChatPage() {
         throw error; // Re-throw to let DocumentUpload handle the error state
       }
     },
-    [addSessionDocument, activePatient]
+    [addSessionDocument]
   );
 
   // Handle document analysis - uploads and analyzes via /api/documents/upload
@@ -306,7 +316,6 @@ export default function ChatPage() {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('patientId', activePatient?.demographics.id || '');
         formData.append('autoAnalyze', 'true');
 
         const response = await fetch('/api/documents/upload', {
@@ -319,6 +328,15 @@ export default function ChatPage() {
         }
 
         const result = await response.json();
+
+        // Store document context for follow-up questions
+        if (result.rawText) {
+          setDocumentContext({
+            fileName: file.name,
+            rawText: result.rawText,
+            summary: result.summary,
+          });
+        }
 
         // Build analysis response
         let analysisContent = `I've analyzed your document "${file.name}".\n\n`;
@@ -368,16 +386,18 @@ export default function ChatPage() {
         setIsLoading(false);
       }
     },
-    [addChatMessage, addSessionDocument, activePatient]
+    [addChatMessage, addSessionDocument]
   );
 
   // Handle clear history
   const handleClearHistory = useCallback(() => {
     if (window.confirm('Are you sure you want to clear the chat history?')) {
       clearChatHistory();
+      clearSessionDocuments(); // Clear uploaded documents too
       setShowDoctorRecommendations(false);
+      setDocumentContext(null); // Clear document context too
     }
-  }, [clearChatHistory]);
+  }, [clearChatHistory, clearSessionDocuments]);
 
   // Handle doctor booking
   const handleBookDoctor = useCallback(
@@ -397,96 +417,30 @@ export default function ChatPage() {
     [addChatMessage]
   );
 
-  // Get patient initials
-  const patientInitials = useMemo(() => {
-    if (!activePatient) return '';
-    const firstName = activePatient.demographics.firstName;
-    const lastName = activePatient.demographics.lastName;
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  }, [activePatient]);
-
-  // Calculate patient age
-  const patientAge = useMemo(() => {
-    if (!activePatient) return 0;
-    const birthDate = new Date(activePatient.demographics.dateOfBirth);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-  }, [activePatient]);
-
   return (
     <div className={styles.chatPage}>
-      {/* Patient Context Header */}
-      {activePatient ? (
-        <div className={styles.patientContext}>
-          <div className={styles.patientInfo}>
-            <div className={styles.patientAvatar}>{patientInitials}</div>
-            <div className={styles.patientDetails}>
-              <h2 className={styles.patientName}>{patientFullName}</h2>
-              <div className={styles.patientMeta}>
-                <span>{patientAge} years old</span>
-                <span>|</span>
-                <span>{activePatient.demographics.sex}</span>
-                <span className={styles.contextBadge}>
-                  <span className={styles.contextDot} />
-                  Patient Context Active
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className={styles.contextActions}>
-            <button
-              type="button"
-              className={styles.clearHistoryButton}
-              onClick={handleClearHistory}
-            >
-              Clear Chat
-            </button>
-          </div>
+      {/* Chat Header */}
+      <div className={styles.chatHeader}>
+        <div className={styles.headerInfo}>
+          <h2 className={styles.headerTitle}>Health Consultation</h2>
+          <span className={styles.contextBadge}>
+            <span className={styles.contextDot} />
+            AI Assistant Ready
+          </span>
         </div>
-      ) : (
-        <div className={styles.noPatient}>
-          <svg
-            className={styles.noPatientIcon}
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+        <div className={styles.contextActions}>
+          <button
+            type="button"
+            className={styles.clearHistoryButton}
+            onClick={handleClearHistory}
           >
-            <path
-              d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <circle
-              cx="12"
-              cy="7"
-              r="4"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <h3 className={styles.noPatientTitle}>No Patient Selected</h3>
-          <p className={styles.noPatientText}>
-            Please select a patient from the profile selector in the header to start a
-            consultation session.
-          </p>
-          <Link href="/dashboard" className={styles.selectPatientButton}>
-            Go to Dashboard
-          </Link>
+            Clear Chat
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Main Chat Container */}
-      {activePatient && (
-        <div className={styles.chatContainer}>
+      <div className={styles.chatContainer}>
           {/* Session Documents Indicator */}
           {sessionDocuments.length > 0 && (
             <div className={styles.sessionDocuments}>
@@ -617,10 +571,8 @@ export default function ChatPage() {
             onSend={handleSendMessage}
             onUploadClick={() => setIsUploadOpen(true)}
             isLoading={isLoading}
-            disabled={!activePatient}
           />
         </div>
-      )}
 
       {/* Document Upload Modal */}
       <DocumentUpload

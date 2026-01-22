@@ -1,11 +1,12 @@
 import { Agent } from "@mastra/core/agent";
-import { Memory } from "@mastra/memory";
-import { reportTool } from "../tools/report-tool";
-import { rxTool } from "../tools/rx-tool";
-import { triageTool } from "../tools/triage-tool";
-import { patientContextTool } from "../tools/patient-context-tool";
-import { doctorTool } from "../tools/doctor-tool";
-import { knowledgeTool } from "../tools/knowledge-tool";
+// import { Memory } from "@mastra/memory";
+// import { storage } from "../config/storage";
+// import { reportTool } from "../tools/report-tool";
+// import { rxTool } from "../tools/rx-tool";
+// import { triageTool } from "../tools/triage-tool";
+// import { patientContextTool } from "../tools/patient-context-tool";
+// import { doctorTool } from "../tools/doctor-tool";
+// import { knowledgeTool } from "../tools/knowledge-tool";
 import { getHospitallModel } from "../utils/llm";
 
 const model = getHospitallModel();
@@ -94,17 +95,21 @@ export const hospitallRouter = new Agent({
     "- Remind users this is guidance only and to consult a doctor for medical decisions",
   ],
   model,
-  tools: {
-    triageTool,
-    rxTool,
-    reportTool,
-    patientContextTool,
-    doctorTool,
-    knowledgeTool,
-  },
-  memory: new Memory({
-    options: {
-      lastMessages: 20,
-    },
-  }),
+  // Tools temporarily disabled to debug AI Gateway compatibility
+  // tools: {
+  //   triageTool,
+  //   rxTool,
+  //   reportTool,
+  //   patientContextTool,
+  //   doctorTool,
+  //   knowledgeTool,
+  // },
+  // Memory temporarily disabled to debug AI Gateway compatibility
+  // memory: new Memory({
+  //   storage,
+  //   options: {
+  //     lastMessages: 5,
+  //     semanticRecall: false,
+  //   },
+  // }),
 });

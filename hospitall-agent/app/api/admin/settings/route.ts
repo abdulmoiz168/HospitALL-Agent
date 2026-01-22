@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, getUserProfile } from "@/lib/supabase/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClientRequired } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -98,7 +98,7 @@ const validateSettings = (
 // Helper to get settings from database
 async function getSettingsFromDb(): Promise<AdminSettings> {
   try {
-    const supabase = createServiceClient();
+    const supabase = createServiceClientRequired();
     const { data, error } = await supabase
       .from("admin_settings")
       .select("key, value")
@@ -132,7 +132,7 @@ async function saveSettingsToDb(
   userId: string
 ): Promise<boolean> {
   try {
-    const supabase = createServiceClient();
+    const supabase = createServiceClientRequired();
 
     // Upsert each setting as a key-value pair
     for (const [key, value] of Object.entries(settings)) {

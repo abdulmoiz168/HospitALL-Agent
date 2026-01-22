@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { mastra } from "@/mastra";
+import { createOpenAI } from "@ai-sdk/openai";
+import { streamText } from "ai";
 import {
   buildStructuredFeatures,
   sanitizeText,
@@ -10,8 +12,6 @@ import type { PrescriptionOutput } from "@/mastra/schemas/prescription";
 import type { ReportOutput } from "@/mastra/schemas/report";
 import type { TriageOutput } from "@/mastra/schemas/triage";
 import { hasLlmKey } from "@/mastra/utils/llm";
-import { MOCK_PATIENTS } from "@/mastra/data/patients";
-import type { Patient } from "@/mastra/schemas/patient";
 import { getUser } from "@/lib/supabase/server";
 import {
   getTriageState,
@@ -43,8 +43,12 @@ export async function OPTIONS() {
 type ChatRequest = {
   message?: string;
   sessionId?: string;
-  patientId?: string;
   systemPrompt?: string;
+  documentContext?: {
+    fileName?: string;
+    rawText: string;
+    summary?: string;
+  };
 };
 
 const allowLlm = () =>
@@ -215,54 +219,28 @@ const parseMedList = (text: string) => {
     .filter(Boolean);
 };
 
-const getPatientById = (patientId: string): Patient | undefined => {
-  return MOCK_PATIENTS.find((p) => p.demographics.id === patientId);
-};
+const buildDocumentContextMessage = (doc: NonNullable<ChatRequest["documentContext"]>): string => {
+  // Limit document content to ~8000 chars to include more data while leaving room for response
+  const maxDocLength = 8000;
+  const truncatedText = doc.rawText.length > maxDocLength
+    ? doc.rawText.substring(0, maxDocLength) + "\n[... truncated ...]"
+    : doc.rawText;
 
-const buildPatientContextMessage = (patient: Patient): string => {
-  const { demographics, conditions, medications, allergies, labResults } = patient;
+  return `=== UPLOADED DOCUMENT ===
+${doc.fileName ? `File: ${doc.fileName}` : ""}
+${doc.summary ? `Summary: ${doc.summary}` : ""}
 
-  const age = Math.floor(
-    (Date.now() - new Date(demographics.dateOfBirth).getTime()) /
-      (365.25 * 24 * 60 * 60 * 1000)
-  );
+Content:
+${truncatedText}
+=== END DOCUMENT ===
 
-  const getAgeBand = (years: number): string => {
-    if (years < 18) return "pediatric (under 18)";
-    if (years < 40) return "young adult (18-39)";
-    if (years < 65) return "middle-aged adult (40-64)";
-    return "older adult (65+)";
-  };
-
-  const activeConditions = conditions
-    .filter((c) => c.status === "active" || c.status === "chronic")
-    .map((c) => c.name)
-    .join(", ");
-
-  const activeMeds = medications
-    .filter((m) => m.status === "active")
-    .map((m) => `${m.name} ${m.dosage} (${m.frequency})`)
-    .join("; ");
-
-  const allergyList = allergies
-    .map((a) => `${a.allergen} (${a.severity}: ${a.reaction})`)
-    .join("; ");
-
-  const recentLabs = labResults
-    .slice(0, 5)
-    .map((l) => `${l.test}: ${l.value} ${l.unit} [ref: ${l.referenceRange}]${l.status && l.status !== "normal" ? ` (${l.status})` : ""}`)
-    .join("; ");
-
-  return `Current patient context (de-identified):
-- Patient ID: ${demographics.id}
-- Age Band: ${getAgeBand(age)}
-- Biological Sex: ${demographics.sex}
-- Active Conditions: ${activeConditions || "None recorded"}
-- Current Medications: ${activeMeds || "None recorded"}
-- Known Allergies: ${allergyList || "No known allergies"}
-- Recent Lab Results: ${recentLabs || "No recent labs"}
-
-IMPORTANT: Use this de-identified patient context to provide personalized clinical guidance. Be aware of their conditions, medications, and allergies when providing recommendations. Do not ask for or reference patient names or other direct identifiers.`;
+CRITICAL INSTRUCTIONS:
+- ONLY use values that appear EXACTLY in the document above. NEVER make up, estimate, or hallucinate any numbers.
+- When explaining lab results, cite the EXACT numeric values from the document (e.g., "Your RBC count is 5.2 mill/cumm")
+- If a value is unclear or not visible in the document, say "I cannot clearly read this value" rather than guessing
+- Compare each value to its reference range as shown in the document
+- Double-check every number you cite against the document before including it in your response
+- Provide complete, thorough explanations without cutting off mid-sentence`;
 };
 
 export async function POST(req: Request) {
@@ -292,9 +270,8 @@ export async function POST(req: Request) {
   }
 
   const sessionId = body.sessionId?.toString() ?? (userId || "anonymous-session");
-  const patientId = body.patientId?.toString();
   const customSystemPrompt = body.systemPrompt?.toString();
-  const patient = patientId ? getPatientById(patientId) : undefined;
+  const documentContext = body.documentContext;
   const { sanitizedText, directIdentifiersDetected } = sanitizeText(message);
   const parsedSignals = {
     ageYears: parseAge(sanitizedText),
@@ -522,31 +499,37 @@ export async function POST(req: Request) {
     });
   }
 
-  const agent = mastra.getAgent("hospitallRouter");
-  let finalMeta: Record<string, unknown> = { intent, externalAllowed, patientId, conversationLogId };
+  // Use AI SDK directly for LLM calls
+  let finalMeta: Record<string, unknown> = { intent, externalAllowed, conversationLogId };
 
-  const systemMessages: string[] = [];
+  const systemMessages: string[] = [
+    "You are HospitALL AI, a compassionate healthcare assistant. The logged-in user is the patient. Provide helpful health guidance based on uploaded documents and their questions. CRITICAL: When referencing lab values or medical data, you must cite ONLY the exact values that appear in the provided documents. Never fabricate, estimate, or hallucinate numbers. If you cannot clearly see a value in the document, say so rather than guessing.",
+  ];
 
-  // Include custom system prompt if provided
   if (customSystemPrompt) {
     systemMessages.push(customSystemPrompt);
   }
 
-  systemMessages.push(
-    "Use the provided structured context. Do not request direct identifiers.",
-    `Structured context: ${JSON.stringify({
-      structured,
-      directIdentifiersDetected,
-      extractedSignals: parsedSignals,
-    })}`
-  );
-
-  if (patient) {
-    systemMessages.push(buildPatientContextMessage(patient));
+  // Include uploaded document context if provided
+  if (documentContext?.rawText) {
+    systemMessages.push(buildDocumentContextMessage(documentContext));
   }
 
   const combinedSystemContext = systemMessages.join("\n\n");
   let responseText = "";
+
+  // Create OpenAI-compatible client for AI Gateway
+  const apiKey = process.env.AI_GATEWAY_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ error: "AI_GATEWAY_API_KEY not configured" }, { status: 500 });
+  }
+
+  const openai = createOpenAI({
+    apiKey,
+    baseURL: "https://ai-gateway.vercel.sh/v1",
+  });
+
+  const model = process.env.HOSPITALL_LLM_MODEL ?? "google/gemini-3-flash";
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -555,45 +538,36 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(`${JSON.stringify(data)}\n`));
       };
       try {
-        const response = await agent.stream(
-          [
-            { role: "system" as const, content: combinedSystemContext },
-            { role: "user" as const, content: sanitizedText },
-          ],
-          {
-            memory: {
-              resource: sessionId,
-              thread: sessionId,
-            },
-            maxSteps: 6,
-            onFinish: async ({ finishReason, usage }) => {
-              finalMeta = { ...finalMeta, finishReason, usage };
+        const response = streamText({
+          model: openai(model),
+          system: combinedSystemContext,
+          prompt: sanitizedText,
+          maxOutputTokens: 8192, // Increased for complete responses without truncation
+          onFinish: async ({ finishReason, usage }) => {
+            finalMeta = { ...finalMeta, finishReason, usage };
 
-              // Log usage with actual token counts
-              const latencyMs = Date.now() - startTime;
-              // Cast usage to access token properties (types may vary between Mastra versions)
-              const usageAny = usage as { promptTokens?: number; completionTokens?: number } | undefined;
-              const inputTokens = usageAny?.promptTokens || Math.ceil(message.length / 4);
-              const outputTokens = usageAny?.completionTokens || Math.ceil(responseText.length / 4);
+            const latencyMs = Date.now() - startTime;
+            const usageAny = usage as { promptTokens?: number; completionTokens?: number } | undefined;
+            const inputTokens = usageAny?.promptTokens || Math.ceil(message.length / 4);
+            const outputTokens = usageAny?.completionTokens || Math.ceil(responseText.length / 4);
 
-              await logUsage({
-                userId,
-                sessionId,
-                inputTokens,
-                outputTokens,
-                latencyMs,
-                modelUsed: process.env.HOSPITALL_LLM_MODEL || "google/gemini-3-flash-preview",
-                endpoint: "/api/chat",
-                intent,
-                externalLlmUsed: true,
-              });
+            await logUsage({
+              userId,
+              sessionId,
+              inputTokens,
+              outputTokens,
+              latencyMs,
+              modelUsed: model,
+              endpoint: "/api/chat",
+              intent,
+              externalLlmUsed: true,
+            });
 
-              if (conversationLogId) {
-                await updateConversationResponse(conversationLogId, responseText.substring(0, 500));
-              }
-            },
+            if (conversationLogId) {
+              await updateConversationResponse(conversationLogId, responseText.substring(0, 500));
+            }
           },
-        );
+        });
 
         for await (const chunk of response.textStream) {
           responseText += chunk;

@@ -25,8 +25,12 @@ const DIRECT_IDENTIFIER_PATTERNS: Array<{ label: string; regex: RegExp }> = [
   // Social Security Numbers
   { label: "ssn", regex: /\b\d{3}-\d{2}-\d{4}\b/g },
 
-  // Medical Record Numbers
+  // Medical Record Numbers (MRN, Patient ID, Sample ID)
   { label: "mrn", regex: /\bMRN[:\s]*[A-Z0-9-]{5,}\b/gi },
+  {
+    label: "patient_id",
+    regex: /\b(Patient\s*ID|PID|Sample\s*ID|Specimen\s*ID|Lab\s*ID|Accession)[:\s#]*[A-Z0-9-]{4,}\b/gi,
+  },
 
   // Street addresses (US format)
   {
@@ -52,10 +56,28 @@ const DIRECT_IDENTIFIER_PATTERNS: Array<{ label: string; regex: RegExp }> = [
     regex: /\b(my name is|i am|i'm|this is|call me|named)\s+([A-Z][a-z]+(\s+[A-Z][a-z]+)?)\b/gi,
   },
 
+  // Patient name patterns from lab reports - "Patient Name: X", "Name: X", "Patient: X"
+  {
+    label: "patient_name",
+    regex: /\b(Patient\s*Name|Patient|Name|Referred\s*By|Ref\.?\s*By|Dr\.?)[:\s]+([A-Z][a-z]+(\s+[A-Z]\.?\s*)?(\s+[A-Z][a-z]+)?)\b/gi,
+  },
+
+  // Age/Sex patterns from lab reports (redact as they can identify when combined)
+  {
+    label: "age_sex",
+    regex: /\b(Age|Sex)[:\s/]+(\d{1,3}\s*(Y|Yrs?|Years?|M|Male|F|Female))\b/gi,
+  },
+
   // CNIC/National ID (Pakistan)
   {
     label: "cnic",
     regex: /\b\d{5}[-]?\d{7}[-]?\d{1}\b/g,
+  },
+
+  // Report date patterns (collection date, report date)
+  {
+    label: "report_date",
+    regex: /\b(Collection\s*Date|Report\s*Date|Sample\s*Date|Received|Reported)[:\s]*([\d]{1,2}[-/.][\d]{1,2}[-/.][\d]{2,4})\b/gi,
   },
 ];
 

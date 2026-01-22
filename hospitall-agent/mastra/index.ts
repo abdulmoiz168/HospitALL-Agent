@@ -1,5 +1,5 @@
 import { Mastra } from "@mastra/core/mastra";
-import { PostgresStore } from "@mastra/pg";
+import { storage } from "./config/storage";
 import { hospitallRouter } from "./agents/hospitall-router";
 import { reportNarrator } from "./agents/report-narrator";
 import { rxNarrator } from "./agents/rx-narrator";
@@ -19,19 +19,8 @@ import { knowledgeTool } from "./tools/knowledge-tool";
 // Import custom gateway for Vercel AI Gateway
 import { VercelAIGateway } from "./gateways/vercel-ai-gateway";
 
-// Use PostgresStore for Vercel/Supabase deployment, fallback to in-memory for local dev without DB
-const createStorage = () => {
-  const dbUrl = process.env.DATABASE_URL;
-  if (dbUrl) {
-    return new PostgresStore({
-      id: "hospitall-storage",
-      connectionString: dbUrl,
-    });
-  }
-  // For local development without a database, return undefined (Mastra will use in-memory)
-  console.warn("DATABASE_URL not set - using in-memory storage (not suitable for production)");
-  return undefined;
-};
+// Re-export storage for external access
+export { storage } from "./config/storage";
 
 // Create gateway instances conditionally based on environment
 const createGateways = () => {
@@ -57,7 +46,7 @@ export const mastra = new Mastra({
     rxWorkflow,
     reportWorkflow,
   },
-  storage: createStorage(),
+  storage,
   gateways: createGateways(),
 });
 

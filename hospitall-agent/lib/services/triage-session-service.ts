@@ -1,4 +1,4 @@
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClientRequired } from "@/lib/supabase/server";
 
 const SESSION_TTL_MINUTES = 30;
 
@@ -24,7 +24,7 @@ export async function getTriageState(
   sessionId: string
 ): Promise<TriageIntakeState | null> {
   try {
-    const supabase = createServiceClient();
+    const supabase = createServiceClientRequired();
 
     const { data, error } = await supabase
       .from("triage_sessions")
@@ -61,7 +61,7 @@ export async function setTriageState(
   userId?: string
 ): Promise<boolean> {
   try {
-    const supabase = createServiceClient();
+    const supabase = createServiceClientRequired();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + SESSION_TTL_MINUTES * 60 * 1000);
 
@@ -101,7 +101,7 @@ export async function setTriageState(
  */
 export async function clearTriageState(sessionId: string): Promise<boolean> {
   try {
-    const supabase = createServiceClient();
+    const supabase = createServiceClientRequired();
 
     const { error } = await supabase
       .from("triage_sessions")
@@ -129,7 +129,7 @@ export async function cleanupExpiredSessions(): Promise<{
   deletedCount: number;
 }> {
   try {
-    const supabase = createServiceClient();
+    const supabase = createServiceClientRequired();
     const now = new Date().toISOString();
 
     // First, count expired sessions
@@ -169,7 +169,7 @@ export async function getSessionStats(): Promise<{
   expiredCount: number;
 } | null> {
   try {
-    const supabase = createServiceClient();
+    const supabase = createServiceClientRequired();
     const now = new Date().toISOString();
 
     // Count active sessions

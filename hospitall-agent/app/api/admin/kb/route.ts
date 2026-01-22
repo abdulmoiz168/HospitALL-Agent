@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, getUser } from "@/lib/supabase/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClientRequired } from "@/lib/supabase/server";
 import { PDFParse } from "pdf-parse";
 import { createWorker } from "tesseract.js";
 
@@ -106,7 +106,7 @@ export async function GET(req: Request) {
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
-    const supabase = createServiceClient();
+    const supabase = createServiceClientRequired();
     let queryBuilder = supabase.from("knowledge_base").select("*");
 
     // Filter by status (non-admins only see active)
@@ -193,7 +193,7 @@ export async function POST(req: Request) {
     const { user } = await requireAdmin();
 
     const contentType = req.headers.get("content-type") || "";
-    const supabase = createServiceClient();
+    const supabase = createServiceClientRequired();
 
     // Handle file upload
     if (contentType.includes("multipart/form-data")) {
@@ -352,7 +352,7 @@ export async function PUT(req: Request) {
       );
     }
 
-    const supabase = createServiceClient();
+    const supabase = createServiceClientRequired();
 
     // Check if document exists
     const { data: existingDoc, error: fetchError } = await supabase
@@ -442,7 +442,7 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const supabase = createServiceClient();
+    const supabase = createServiceClientRequired();
 
     // Check if document exists
     const { data: existingDoc, error: fetchError } = await supabase

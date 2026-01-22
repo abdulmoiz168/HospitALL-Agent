@@ -1,20 +1,32 @@
 import { NextResponse } from "next/server";
 import { PDFParse } from "pdf-parse";
-import { createWorker } from "tesseract.js";
 import mammoth from "mammoth";
+import { createWorker } from "tesseract.js";
 import { mastra } from "@/mastra";
+import { sanitizeText } from "@/mastra/guards/phi-guard";
 import type { ReportOutput } from "@/mastra/schemas/report";
 
 // Supported OCR languages: English, Urdu, Arabic
 const SUPPORTED_LANGUAGES = ["eng", "urd", "ara"] as const;
-type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
+type OcrLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
-// Maximum pages to OCR for scanned PDFs (performance limit)
+// Maximum pages to OCR for scanned PDFs
 const MAX_OCR_PAGES = 10;
 
 export const runtime = "nodejs";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+
+// Supported MIME types
+const SUPPORTED_TYPES = {
+  pdf: "application/pdf",
+  word: [
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ],
+  text: ["text/plain", "text/markdown"],
+  image: ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"],
+};
 
 // Handle CORS preflight requests
 export async function OPTIONS() {
@@ -30,7 +42,6 @@ export async function OPTIONS() {
 
 // Explicitly reject GET requests with helpful error
 export async function GET() {
-  console.log("[documents/upload] GET request received - returning 405");
   return NextResponse.json(
     { error: "Use POST to upload documents" },
     { status: 405 }
@@ -39,7 +50,6 @@ export async function GET() {
 
 // Handle PUT requests
 export async function PUT() {
-  console.log("[documents/upload] PUT request received - returning 405");
   return NextResponse.json(
     { error: "Use POST to upload documents" },
     { status: 405 }
@@ -48,52 +58,67 @@ export async function PUT() {
 
 // Handle DELETE requests
 export async function DELETE() {
-  console.log("[documents/upload] DELETE request received - returning 405");
   return NextResponse.json(
     { error: "Use POST to upload documents" },
     { status: 405 }
   );
 }
 
-// Supported MIME types
-const SUPPORTED_TYPES = {
-  pdf: "application/pdf",
-  word: [
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ],
-  text: ["text/plain", "text/markdown"],
-  image: ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"],
-};
-
 const toBuffer = async (file: File): Promise<Buffer> => {
   const arrayBuffer = await file.arrayBuffer();
   return Buffer.from(arrayBuffer);
 };
 
+/**
+ * Extract text from an image using local Tesseract OCR (no cloud/PHI exposure)
+ */
+const extractFromImageLocal = async (
+  buffer: Buffer,
+  language: OcrLanguage = "eng"
+): Promise<{ text: string; warnings: string[] }> => {
+  const warnings: string[] = [];
+  try {
+    const worker = await createWorker(language);
+    try {
+      const { data } = await worker.recognize(buffer);
+      const text = (data.text ?? "").trim();
+      if (!text || text.length < 10) {
+        warnings.push(
+          "Limited text extracted. Ensure the image is clear and well-lit."
+        );
+      }
+      return { text, warnings };
+    } finally {
+      await worker.terminate();
+    }
+  } catch (error) {
+    console.error("Tesseract OCR error:", error);
+    warnings.push("Failed to extract text from image.");
+    return { text: "", warnings };
+  }
+};
+
 const extractFromPdf = async (
   buffer: Buffer,
-  language: SupportedLanguage = "eng"
+  language: OcrLanguage = "eng"
 ): Promise<{ text: string; method: "pdf" | "pdf_ocr"; warnings: string[] }> => {
   const warnings: string[] = [];
 
-  // Step 1: Try text extraction with pdf-parse
+  // Try text extraction with pdf-parse first
   const pdfParser = new PDFParse({ data: new Uint8Array(buffer) });
   const result = await pdfParser.getText();
   const text = (result.text ?? "").trim();
   const pageCount = result.total ?? 1;
 
-  // Step 2: Check if this is a scanned PDF (< 50 chars per page average)
+  // Check if this is a scanned PDF (< 50 chars per page average)
   const charsPerPage = text.length / pageCount;
   if (charsPerPage >= 50) {
     // Text-based PDF - return extracted text
     return { text, method: "pdf", warnings };
   }
 
-  // Step 3: Scanned PDF detected - use OCR fallback
-  warnings.push(
-    "Scanned PDF detected. Using OCR extraction (may take longer)."
-  );
+  // Scanned PDF - use local OCR (no cloud/PHI exposure)
+  warnings.push("Scanned PDF detected. Using local OCR extraction.");
 
   try {
     const pages: string[] = [];
@@ -101,14 +126,11 @@ const extractFromPdf = async (
 
     // Dynamic import to avoid build-time issues with native modules
     const { pdf: pdfToImages } = await import("pdf-to-img");
-
-    // Convert PDF pages to images and OCR each
     const doc = await pdfToImages(buffer, { scale: 2.0 });
+
     for await (const pageImage of doc) {
       if (pageIndex >= MAX_OCR_PAGES) {
-        warnings.push(
-          `OCR limited to first ${MAX_OCR_PAGES} pages for performance.`
-        );
+        warnings.push(`OCR limited to first ${MAX_OCR_PAGES} pages.`);
         break;
       }
 
@@ -123,27 +145,16 @@ const extractFromPdf = async (
     }
 
     const ocrText = pages.join("\n\n").trim();
-    return { text: ocrText, method: "pdf_ocr", warnings };
-  } catch (ocrError) {
-    warnings.push(
-      "OCR fallback failed. Try uploading pages as individual images."
-    );
-    return { text, method: "pdf", warnings };
-  }
-};
+    if (!ocrText) {
+      warnings.push("No text extracted via OCR. Try uploading as a clear image.");
+      return { text, method: "pdf", warnings };
+    }
 
-const extractFromImage = async (
-  buffer: Buffer,
-  language: SupportedLanguage = "eng"
-): Promise<string> => {
-  // tesseract.js v7 takes language as parameter to createWorker
-  // Supports eng (English), urd (Urdu), ara (Arabic)
-  const worker = await createWorker(language);
-  try {
-    const { data } = await worker.recognize(buffer);
-    return (data.text ?? "").trim();
-  } finally {
-    await worker.terminate();
+    return { text: ocrText, method: "pdf_ocr", warnings };
+  } catch (error) {
+    console.error("PDF OCR fallback error:", error);
+    warnings.push("OCR extraction failed. Try uploading as an image instead.");
+    return { text, method: "pdf", warnings };
   }
 };
 
@@ -157,18 +168,13 @@ const extractFromWord = async (
   const warnings: string[] = [];
 
   try {
-    // mammoth.js handles .docx properly - preserves tables, lists, formatting
     const result = await mammoth.extractRawText({ buffer });
-
-    // Collect any warnings from mammoth
     const mammothWarnings = result.messages
       .filter((m) => m.type === "warning")
       .map((m) => m.message);
     warnings.push(...mammothWarnings);
-
     return { text: result.value.trim(), warnings };
   } catch {
-    // Fallback for .doc (older binary format) or corrupted files
     const text = buffer
       .toString("utf-8")
       .replace(/[\x00-\x1F\x7F-\xFF]/g, " ")
@@ -183,8 +189,9 @@ const isSupportedType = (mimeType: string): boolean => {
   if (mimeType === SUPPORTED_TYPES.pdf) return true;
   if (SUPPORTED_TYPES.word.includes(mimeType)) return true;
   if (SUPPORTED_TYPES.text.includes(mimeType)) return true;
-  if (SUPPORTED_TYPES.image.some((t) => mimeType.startsWith(t.split("/")[0])))
-    return true;
+  if (SUPPORTED_TYPES.image.includes(mimeType)) return true;
+  // Also check for generic image types
+  if (mimeType.startsWith("image/")) return true;
   return false;
 };
 
@@ -214,7 +221,6 @@ const generateSummary = (
     return analysis.summary;
   }
 
-  // Fallback summary if analysis fails
   const words = rawText.split(/\s+/).length;
   const lines = rawText.split(/\n/).filter((l) => l.trim()).length;
   return `Document processed: ${words} words, ${lines} lines of content extracted.`;
@@ -222,26 +228,24 @@ const generateSummary = (
 
 export async function POST(req: Request) {
   console.log("[documents/upload] POST request received");
-  console.log("[documents/upload] Content-Type:", req.headers.get("content-type"));
 
   try {
     const formData = await req.formData();
-    console.log("[documents/upload] FormData parsed successfully");
     const file = formData.get("file");
     const patientId = formData.get("patientId")?.toString();
     const autoAnalyze = formData.get("autoAnalyze")?.toString() !== "false";
 
     // Language parameter for OCR (default: English)
     const languageParam = formData.get("language")?.toString() ?? "eng";
-    const language: SupportedLanguage = SUPPORTED_LANGUAGES.includes(
-      languageParam as SupportedLanguage
+    const language: OcrLanguage = SUPPORTED_LANGUAGES.includes(
+      languageParam as OcrLanguage
     )
-      ? (languageParam as SupportedLanguage)
+      ? (languageParam as OcrLanguage)
       : "eng";
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
-        { error: "Upload a document file (PDF, Word, text, markdown, or image)." },
+        { error: "Upload a document file (PDF, Word, text, or image)." },
         { status: 400 }
       );
     }
@@ -257,8 +261,7 @@ export async function POST(req: Request) {
     if (!isSupportedType(mimeType)) {
       return NextResponse.json(
         {
-          error:
-            "Unsupported file type. Upload a PDF, Word document, text file, markdown, or image.",
+          error: "Unsupported file type. Upload a PDF, Word document, text file, or image.",
         },
         { status: 415 }
       );
@@ -269,27 +272,17 @@ export async function POST(req: Request) {
     const warnings: string[] = [];
     let extractionMethod = "";
 
-    // Extract text based on file type
+    // Extract text based on file type (all OCR is local - no cloud/PHI exposure)
     if (mimeType === SUPPORTED_TYPES.pdf) {
       const pdfResult = await extractFromPdf(buffer, language);
       rawText = pdfResult.text;
       extractionMethod = pdfResult.method;
       warnings.push(...pdfResult.warnings);
-      if (!rawText) {
-        warnings.push(
-          "No text extracted from the PDF. Try uploading pages as individual images."
-        );
-      }
     } else if (SUPPORTED_TYPES.word.includes(mimeType)) {
       extractionMethod = "word";
       const wordResult = await extractFromWord(buffer);
       rawText = wordResult.text;
       warnings.push(...wordResult.warnings);
-      if (!rawText) {
-        warnings.push(
-          "No text extracted from Word document. The file may be corrupted."
-        );
-      }
     } else if (
       SUPPORTED_TYPES.text.includes(mimeType) ||
       file.name.endsWith(".md") ||
@@ -298,20 +291,34 @@ export async function POST(req: Request) {
       extractionMethod = "text";
       rawText = await extractFromText(buffer);
     } else if (mimeType.startsWith("image/")) {
-      extractionMethod = "ocr";
-      rawText = await extractFromImage(buffer, language);
-      if (!rawText) {
-        warnings.push("No text extracted from the image via OCR.");
-      }
+      extractionMethod = "local_ocr";
+      const imageResult = await extractFromImageLocal(buffer, language);
+      rawText = imageResult.text;
+      warnings.push(...imageResult.warnings);
     }
 
-    // Auto-analyze with report workflow if requested
+    if (!rawText) {
+      warnings.push("No text could be extracted from the document.");
+    }
+
+    // Sanitize text to remove PHI before returning to client (redacts names, IDs - keeps medical values)
+    const { sanitizedText: safeRawText, directIdentifiersDetected } =
+      sanitizeText(rawText);
+    const rawTextContainedPhi = directIdentifiersDetected.length > 0;
+
+    if (rawTextContainedPhi) {
+      warnings.push(
+        `PHI detected and redacted: ${directIdentifiersDetected.join(", ")}`
+      );
+    }
+
+    // Auto-analyze with report workflow if requested (uses original text internally)
     let analysis: ReportOutput | null = null;
     if (autoAnalyze && rawText) {
       analysis = await runReportAnalysis(rawText);
     }
 
-    const summary = generateSummary(rawText, analysis);
+    const summary = generateSummary(safeRawText, analysis);
 
     return NextResponse.json({
       success: true,
@@ -320,7 +327,8 @@ export async function POST(req: Request) {
       fileSize: file.size,
       extractionMethod,
       language,
-      rawText,
+      rawText: safeRawText, // Sanitized - safe to display (PHI redacted)
+      rawTextContainedPhi,
       summary,
       analysis,
       patientId: patientId || null,

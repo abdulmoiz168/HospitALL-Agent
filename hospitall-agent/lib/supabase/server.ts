@@ -29,10 +29,11 @@ export async function createClient() {
 }
 
 // Create a service role client for admin operations (bypasses RLS)
+// Returns null if SUPABASE_SERVICE_ROLE_KEY is not configured (logging will be skipped)
 export function createServiceClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
+    return null;
   }
 
   return createServerClient(
@@ -53,6 +54,15 @@ export function createServiceClient() {
       },
     }
   );
+}
+
+// Create a service role client that throws if not configured (for admin routes)
+export function createServiceClientRequired() {
+  const client = createServiceClient();
+  if (!client) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
+  }
+  return client;
 }
 
 // Helper to get the current user from a request

@@ -108,7 +108,8 @@ const SESSION_DOCUMENTS_STORAGE_KEY = "hospitall-session-documents";
 const CHAT_HISTORY_STORAGE_KEY = "hospitall-chat-history";
 
 function PatientProvider({ children }: { children: ReactNode }) {
-  const [activePatient, setActivePatientState] = useState<Patient | null>(null);
+  // Auto-select first mock patient for demo (logged-in user IS the patient)
+  const [activePatient] = useState<Patient | null>(MOCK_PATIENTS[0] || null);
   const [sessionDocuments, setSessionDocuments] = useState<SessionDocument[]>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -116,32 +117,9 @@ function PatientProvider({ children }: { children: ReactNode }) {
   // Load from localStorage on mount (client-side only)
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Load active patient
-      const storedPatientId = localStorage.getItem(ACTIVE_PATIENT_STORAGE_KEY);
-      if (storedPatientId) {
-        const patient = MOCK_PATIENTS.find(
-          (p) => p.demographics.id === storedPatientId
-        );
-        if (patient) {
-          setActivePatientState(patient);
-        }
-      }
-
-      // Load session documents
-      const storedDocs = localStorage.getItem(SESSION_DOCUMENTS_STORAGE_KEY);
-      if (storedDocs) {
-        try {
-          const parsed = JSON.parse(storedDocs);
-          // Convert date strings back to Date objects
-          const documents = parsed.map((doc: SessionDocument) => ({
-            ...doc,
-            uploadedAt: new Date(doc.uploadedAt),
-          }));
-          setSessionDocuments(documents);
-        } catch (e) {
-          console.error("Failed to parse session documents from localStorage:", e);
-        }
-      }
+      // Clean up old localStorage keys (no longer used)
+      localStorage.removeItem(ACTIVE_PATIENT_STORAGE_KEY);
+      localStorage.removeItem(SESSION_DOCUMENTS_STORAGE_KEY);
 
       // Load chat history
       const storedChat = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
@@ -163,43 +141,35 @@ function PatientProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Persist active patient to localStorage
-  const setActivePatient = useCallback((patient: Patient | null) => {
-    setActivePatientState(patient);
-    if (typeof window !== "undefined") {
-      if (patient) {
-        localStorage.setItem(ACTIVE_PATIENT_STORAGE_KEY, patient.demographics.id);
-      } else {
-        localStorage.removeItem(ACTIVE_PATIENT_STORAGE_KEY);
-      }
-    }
+  // No-op: patient switching is disabled (logged-in user is the patient)
+  const setActivePatient = useCallback((_patient: Patient | null) => {
+    // Intentionally disabled - activePatient is fixed to demo user
   }, []);
 
-  // Add a session document
+  // Add a session document (memory-only, prevents duplicates by name)
   const addSessionDocument = useCallback(
     (document: Omit<SessionDocument, "id" | "uploadedAt">) => {
-      const newDoc: SessionDocument = {
-        ...document,
-        id: crypto.randomUUID(),
-        uploadedAt: new Date(),
-      };
       setSessionDocuments((prev) => {
-        const updated = [...prev, newDoc];
-        if (typeof window !== "undefined") {
-          localStorage.setItem(SESSION_DOCUMENTS_STORAGE_KEY, JSON.stringify(updated));
+        // Check if document with same name already exists
+        const exists = prev.some((doc) => doc.name === document.name);
+        if (exists) {
+          return prev; // Don't add duplicate
         }
-        return updated;
+
+        const newDoc: SessionDocument = {
+          ...document,
+          id: crypto.randomUUID(),
+          uploadedAt: new Date(),
+        };
+        return [...prev, newDoc];
       });
     },
     []
   );
 
-  // Clear all session documents
+  // Clear all session documents (memory-only)
   const clearSessionDocuments = useCallback(() => {
     setSessionDocuments([]);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(SESSION_DOCUMENTS_STORAGE_KEY);
-    }
   }, []);
 
   // Add a chat message
