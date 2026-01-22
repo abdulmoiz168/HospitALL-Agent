@@ -303,6 +303,117 @@
   cursor: not-allowed;
 }
 
+/* Analyze buttons container */
+.analyzeButtons {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.buttonIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Vision AI button */
+.visionButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--warning-light);
+  color: var(--warning-dark);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-lg);
+  font-weight: var(--font-medium);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: var(--transition-all);
+}
+
+.visionButton:hover {
+  background: var(--warning);
+  color: white;
+}
+
+/* Vision confirm button (in confirmation dialog) */
+.visionConfirmButton {
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--warning);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: var(--transition-all);
+}
+
+.visionConfirmButton:hover {
+  background: var(--warning-dark);
+}
+
+/* Confirmation state */
+.confirmState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  text-align: center;
+}
+
+.warningIcon {
+  width: 48px;
+  height: 48px;
+  color: var(--warning);
+}
+
+.confirmTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+  margin: 0;
+}
+
+.confirmText {
+  font-size: var(--text-sm);
+  color: var(--foreground-secondary);
+  margin: 0;
+}
+
+.confirmDetails {
+  background: var(--warning-light);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  text-align: left;
+  width: 100%;
+}
+
+.confirmDetails p {
+  margin: 0 0 var(--space-sm) 0;
+  font-size: var(--text-sm);
+  color: var(--foreground);
+}
+
+.confirmDetails ul {
+  margin: 0;
+  padding-left: var(--space-lg);
+  font-size: var(--text-sm);
+  color: var(--foreground-secondary);
+}
+
+.confirmDetails li {
+  margin-bottom: var(--space-xs);
+}
+
+.confirmQuestion {
+  font-weight: var(--font-medium);
+  color: var(--foreground);
+  margin: 0;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .uploadModal {
@@ -333,8 +444,15 @@
   }
 
   .cancelButton,
-  .analyzeButton {
+  .analyzeButton,
+  .visionButton,
+  .visionConfirmButton {
     width: 100%;
     justify-content: center;
+  }
+
+  .analyzeButtons {
+    flex-direction: column;
+    width: 100%;
   }
 }

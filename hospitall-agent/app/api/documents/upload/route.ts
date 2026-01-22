@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 import { createWorker } from "tesseract.js";
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateText } from "ai";
 import { mastra } from "@/mastra";
 import { sanitizeText } from "@/mastra/guards/phi-guard";
 import type { ReportOutput } from "@/mastra/schemas/report";
@@ -226,6 +228,89 @@ const generateSummary = (
   return `Document processed: ${words} words, ${lines} lines of content extracted.`;
 };
 
+/**
+ * Analyze image with Vision AI (Gemini) - sends image to cloud
+ * WARNING: This sends PHI to cloud services - not HIPAA compliant without BAA
+ */
+const analyzeWithVision = async (
+  buffer: Buffer,
+  mimeType: string,
+  fileName: string
+): Promise<{ text: string; analysis: string; warnings: string[] }> => {
+  const warnings: string[] = [];
+
+  const apiKey = process.env.AI_GATEWAY_API_KEY;
+  if (!apiKey) {
+    throw new Error("AI_GATEWAY_API_KEY not configured");
+  }
+
+  const openai = createOpenAI({
+    apiKey,
+    baseURL: "https://ai-gateway.vercel.sh/v1",
+  });
+
+  const model = process.env.HOSPITALL_LLM_MODEL ?? "google/gemini-2.0-flash-001";
+
+  // Convert buffer to base64
+  const base64Image = buffer.toString("base64");
+  const dataUrl = `data:${mimeType};base64,${base64Image}`;
+
+  try {
+    const result = await generateText({
+      model: openai(model),
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              image: dataUrl,
+            },
+            {
+              type: "text",
+              text: `You are a medical document analyst. Analyze this medical document image and provide:
+
+1. **EXTRACTED TEXT**: Extract ALL text from the document exactly as written, preserving the structure (tables, values, reference ranges, etc.)
+
+2. **ANALYSIS**: After the extracted text, provide a comprehensive analysis including:
+   - Document type (lab report, prescription, X-ray, etc.)
+   - Key findings (list each test/measurement with its value and whether it's normal/abnormal)
+   - Any values outside reference ranges (flagged as High/Low)
+   - Summary of what the results indicate
+   - Recommendations for follow-up if applicable
+
+IMPORTANT:
+- Extract the EXACT numeric values from the document - do not estimate or approximate
+- Preserve all patient information, dates, and reference ranges exactly as shown
+- Format your response clearly with sections for "EXTRACTED TEXT" and "ANALYSIS"`,
+            },
+          ],
+        },
+      ],
+    });
+
+    const responseText = result.text || "";
+
+    // Split response into extracted text and analysis
+    const extractedTextMatch = responseText.match(/EXTRACTED TEXT[:\s]*([\s\S]*?)(?=ANALYSIS|$)/i);
+    const analysisMatch = responseText.match(/ANALYSIS[:\s]*([\s\S]*?)$/i);
+
+    const extractedText = extractedTextMatch?.[1]?.trim() || responseText;
+    const analysis = analysisMatch?.[1]?.trim() || "Analysis included in response.";
+
+    warnings.push("Document analyzed using Vision AI (cloud service - PHI was sent externally)");
+
+    return {
+      text: extractedText,
+      analysis,
+      warnings,
+    };
+  } catch (error) {
+    console.error("Vision AI analysis error:", error);
+    throw new Error("Failed to analyze document with Vision AI");
+  }
+};
+
 export async function POST(req: Request) {
   console.log("[documents/upload] POST request received");
 
@@ -234,6 +319,7 @@ export async function POST(req: Request) {
     const file = formData.get("file");
     const patientId = formData.get("patientId")?.toString();
     const autoAnalyze = formData.get("autoAnalyze")?.toString() !== "false";
+    const useVision = formData.get("useVision")?.toString() === "true";
 
     // Language parameter for OCR (default: English)
     const languageParam = formData.get("language")?.toString() ?? "eng";
@@ -271,8 +357,42 @@ export async function POST(req: Request) {
     let rawText = "";
     const warnings: string[] = [];
     let extractionMethod = "";
+    let visionAnalysis: string | null = null;
 
-    // Extract text based on file type (all OCR is local - no cloud/PHI exposure)
+    // VISION MODE: Send image directly to Gemini for analysis (NOT PHI-safe)
+    if (useVision && mimeType.startsWith("image/")) {
+      try {
+        const visionResult = await analyzeWithVision(buffer, mimeType, file.name);
+        rawText = visionResult.text;
+        visionAnalysis = visionResult.analysis;
+        extractionMethod = "vision_ai";
+        warnings.push(...visionResult.warnings);
+
+        // Return vision analysis result (no PHI sanitization - user acknowledged the risk)
+        return NextResponse.json({
+          success: true,
+          fileName: file.name,
+          fileType: mimeType,
+          fileSize: file.size,
+          extractionMethod,
+          language,
+          rawText, // Not sanitized - vision mode user accepted PHI risk
+          rawTextContainedPhi: false, // Not checked in vision mode
+          summary: visionAnalysis,
+          analysis: null, // Vision provides its own analysis
+          visionAnalysis, // Full vision AI analysis
+          patientId: patientId || null,
+          warnings: warnings.length > 0 ? warnings : undefined,
+          usedVisionAI: true,
+        });
+      } catch (error) {
+        console.error("Vision AI error:", error);
+        warnings.push("Vision AI failed. Falling back to local OCR.");
+        // Fall through to local OCR
+      }
+    }
+
+    // LOCAL OCR MODE: PHI-safe text extraction
     if (mimeType === SUPPORTED_TYPES.pdf) {
       const pdfResult = await extractFromPdf(buffer, language);
       rawText = pdfResult.text;
@@ -333,6 +453,7 @@ export async function POST(req: Request) {
       analysis,
       patientId: patientId || null,
       warnings: warnings.length > 0 ? warnings : undefined,
+      usedVisionAI: false,
     });
   } catch (error) {
     console.error("Document upload error:", error);

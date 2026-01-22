@@ -295,7 +295,7 @@ export default function ChatPage() {
     [addSessionDocument]
   );
 
-  // Handle document analysis - uploads and analyzes via /api/documents/upload
+  // Handle document analysis - uploads and analyzes via /api/documents/upload (PHI-safe local OCR)
   const handleAnalyze = useCallback(
     async (file: File) => {
       setIsUploadOpen(false);
@@ -381,6 +381,91 @@ export default function ChatPage() {
         addChatMessage({
           role: 'assistant',
           content: `I've received your document "${file.name}" but encountered an issue during analysis. Please try again or describe the document contents in your message.`,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [addChatMessage, addSessionDocument]
+  );
+
+  // Handle document analysis with Vision AI (sends image to cloud - NOT PHI-safe)
+  const handleAnalyzeWithVision = useCallback(
+    async (file: File) => {
+      setIsUploadOpen(false);
+      setIsLoading(true);
+
+      // Add message about the upload with Vision AI notice
+      addChatMessage({
+        role: 'user',
+        content: `I've uploaded a document for Vision AI analysis: ${file.name}`,
+      });
+
+      // Add to session documents
+      addSessionDocument({
+        name: file.name,
+        type: file.type,
+      });
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('autoAnalyze', 'false'); // Vision mode handles its own analysis
+        formData.append('useVision', 'true'); // Enable Vision AI mode
+
+        const response = await fetch('/api/documents/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Vision analysis failed: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Store document context for follow-up questions
+        if (result.rawText) {
+          setDocumentContext({
+            fileName: file.name,
+            rawText: result.rawText,
+            summary: result.visionAnalysis || result.summary,
+          });
+        }
+
+        // Build analysis response from Vision AI
+        let analysisContent = `I've analyzed your document "${file.name}" using Vision AI.\n\n`;
+
+        // Vision AI provides detailed analysis directly
+        if (result.visionAnalysis) {
+          analysisContent += `**Analysis:**\n${result.visionAnalysis}\n\n`;
+        } else if (result.summary) {
+          analysisContent += `**Summary:**\n${result.summary}\n\n`;
+        }
+
+        // Show extracted text snippet if available
+        if (result.rawText && result.rawText.length > 0) {
+          const textPreview = result.rawText.length > 500
+            ? result.rawText.substring(0, 500) + '...'
+            : result.rawText;
+          analysisContent += `**Extracted Text:**\n\`\`\`\n${textPreview}\n\`\`\`\n\n`;
+        }
+
+        if (result.warnings && result.warnings.length > 0) {
+          analysisContent += `**Notes:** ${result.warnings.join(', ')}\n\n`;
+        }
+
+        analysisContent += 'Is there anything specific about this document you would like me to explain further?';
+
+        addChatMessage({
+          role: 'assistant',
+          content: analysisContent,
+        });
+      } catch (error) {
+        console.error('Vision AI analysis error:', error);
+        addChatMessage({
+          role: 'assistant',
+          content: `I've received your document "${file.name}" but encountered an issue with Vision AI analysis. You can try the standard "Analyze (PHI-Safe)" option instead, or describe the document contents in your message.`,
         });
       } finally {
         setIsLoading(false);
@@ -580,6 +665,7 @@ export default function ChatPage() {
         onClose={() => setIsUploadOpen(false)}
         onUpload={handleUpload}
         onAnalyze={handleAnalyze}
+        onAnalyzeWithVision={handleAnalyzeWithVision}
       />
     </div>
   );

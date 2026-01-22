@@ -12,8 +12,10 @@ export interface DocumentUploadProps {
   onClose: () => void;
   /** Called when file is selected and ready to upload */
   onUpload: (file: File) => Promise<void>;
-  /** Called when document analysis is complete */
+  /** Called when document analysis is complete (PHI-safe local OCR) */
   onAnalyze?: (file: File) => void;
+  /** Called when vision AI analysis is requested (sends image to cloud) */
+  onAnalyzeWithVision?: (file: File) => void;
   /** Accepted file types */
   acceptedTypes?: string[];
   /** Maximum file size in bytes */
@@ -59,12 +61,14 @@ function formatFileSize(bytes: number): string {
 /**
  * DocumentUpload component for uploading medical documents.
  * Features a dropzone, progress indicator, and success/error states.
+ * Offers two analysis modes: PHI-safe (local OCR) and Vision AI (cloud).
  */
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   isOpen,
   onClose,
   onUpload,
   onAnalyze,
+  onAnalyzeWithVision,
   acceptedTypes = DEFAULT_ACCEPTED_TYPES,
   maxSize = DEFAULT_MAX_SIZE,
   className = '',
@@ -74,6 +78,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [showVisionConfirm, setShowVisionConfirm] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropzoneRef = useRef<HTMLDivElement>(null);
@@ -86,6 +91,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       setProgress(0);
       setError(null);
       setIsDragging(false);
+      setShowVisionConfirm(false);
     }
   }, [isOpen]);
 
@@ -93,13 +99,17 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        onClose();
+        if (showVisionConfirm) {
+          setShowVisionConfirm(false);
+        } else {
+          onClose();
+        }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, showVisionConfirm]);
 
   // Validate file
   const validateFile = useCallback(
@@ -213,7 +223,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     setError(null);
   }, []);
 
-  // Handle analyze
+  // Handle PHI-safe analyze (local OCR)
   const handleAnalyze = useCallback(() => {
     if (selectedFile && onAnalyze) {
       onAnalyze(selectedFile);
@@ -221,10 +231,31 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     }
   }, [selectedFile, onAnalyze, onClose]);
 
+  // Handle Vision AI analyze (show confirmation first)
+  const handleVisionAnalyzeClick = useCallback(() => {
+    setShowVisionConfirm(true);
+  }, []);
+
+  // Confirm Vision AI analysis
+  const handleVisionConfirm = useCallback(() => {
+    if (selectedFile && onAnalyzeWithVision) {
+      onAnalyzeWithVision(selectedFile);
+      onClose();
+    }
+  }, [selectedFile, onAnalyzeWithVision, onClose]);
+
+  // Cancel Vision AI confirmation
+  const handleVisionCancel = useCallback(() => {
+    setShowVisionConfirm(false);
+  }, []);
+
   // Get file type labels
   const fileTypeLabels = acceptedTypes
     .map((type) => FILE_TYPE_LABELS[type])
     .filter(Boolean);
+
+  // Check if file is an image (vision AI works best with images)
+  const isImageFile = selectedFile?.type.startsWith('image/');
 
   if (!isOpen) return null;
 
@@ -236,11 +267,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
       >
         {/* Header */}
         <div className={styles.modalHeader}>
-          <h2 className={styles.modalTitle}>Upload Document</h2>
+          <h2 className={styles.modalTitle}>
+            {showVisionConfirm ? 'Privacy Notice' : 'Upload Document'}
+          </h2>
           <button
             type="button"
             className={styles.closeButton}
-            onClick={onClose}
+            onClick={showVisionConfirm ? handleVisionCancel : onClose}
             aria-label="Close upload dialog"
           >
             <svg
@@ -263,8 +296,45 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
         {/* Body */}
         <div className={styles.modalBody}>
+          {/* Vision AI Confirmation Dialog */}
+          {showVisionConfirm && (
+            <div className={styles.confirmState}>
+              <svg
+                className={styles.warningIcon}
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 9V13M12 17H12.01M10.29 3.86L1.82 18C1.64 18.3 1.55 18.64 1.55 19C1.55 19.36 1.64 19.7 1.82 20C2 20.3 2.26 20.56 2.56 20.74C2.86 20.92 3.21 21.01 3.56 21H20.44C20.79 21.01 21.14 20.92 21.44 20.74C21.74 20.56 22 20.3 22.18 20C22.36 19.7 22.45 19.36 22.45 19C22.45 18.64 22.36 18.3 22.18 18L13.71 3.86C13.53 3.56 13.27 3.32 12.97 3.15C12.67 2.98 12.34 2.89 12 2.89C11.66 2.89 11.33 2.98 11.03 3.15C10.73 3.32 10.47 3.56 10.29 3.86Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <h3 className={styles.confirmTitle}>PHI/PII Privacy Warning</h3>
+              <p className={styles.confirmText}>
+                This option will send your document image directly to a cloud AI service
+                (Google Gemini) for more accurate analysis.
+              </p>
+              <div className={styles.confirmDetails}>
+                <p><strong>This means:</strong></p>
+                <ul>
+                  <li>Your document (including any patient names, IDs, dates) will be sent to Google&apos;s servers</li>
+                  <li>This is <strong>NOT HIPAA-compliant</strong> without a Business Associate Agreement (BAA)</li>
+                  <li>Use only for test documents or if you have appropriate agreements in place</li>
+                </ul>
+              </div>
+              <p className={styles.confirmQuestion}>
+                Do you want to proceed with Vision AI analysis?
+              </p>
+            </div>
+          )}
+
           {/* Idle state - dropzone */}
-          {status === 'idle' && (
+          {!showVisionConfirm && status === 'idle' && (
             <div
               ref={dropzoneRef}
               className={`${styles.dropzone} ${isDragging ? styles.dropzoneDragging : ''}`}
@@ -323,7 +393,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           )}
 
           {/* Uploading state */}
-          {status === 'uploading' && selectedFile && (
+          {!showVisionConfirm && status === 'uploading' && selectedFile && (
             <div className={styles.uploadingState}>
               <span className={styles.uploadingFileName}>{selectedFile.name}</span>
               <div className={styles.progressBar}>
@@ -339,7 +409,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
           )}
 
           {/* Success state */}
-          {status === 'success' && selectedFile && (
+          {!showVisionConfirm && status === 'success' && selectedFile && (
             <div className={styles.successState}>
               <svg
                 className={styles.successIcon}
@@ -367,13 +437,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
                 {selectedFile.name} uploaded successfully!
               </span>
               <span className={styles.successHint}>
-                Click &quot;Analyze Document&quot; to have the AI review your document.
+                Choose an analysis option below:
               </span>
             </div>
           )}
 
           {/* Error state */}
-          {status === 'error' && (
+          {!showVisionConfirm && status === 'error' && (
             <div className={styles.errorState}>
               <svg
                 className={styles.errorIcon}
@@ -421,21 +491,99 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
         {/* Footer */}
         <div className={styles.modalFooter}>
-          <button
-            type="button"
-            className={styles.cancelButton}
-            onClick={onClose}
-          >
-            Cancel
-          </button>
-          {status === 'success' && onAnalyze && (
-            <button
-              type="button"
-              className={styles.analyzeButton}
-              onClick={handleAnalyze}
-            >
-              Analyze Document
-            </button>
+          {showVisionConfirm ? (
+            <>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                onClick={handleVisionCancel}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.visionConfirmButton}
+                onClick={handleVisionConfirm}
+              >
+                Yes, Use Vision AI
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                onClick={onClose}
+              >
+                Cancel
+              </button>
+              {status === 'success' && (
+                <div className={styles.analyzeButtons}>
+                  {onAnalyze && (
+                    <button
+                      type="button"
+                      className={styles.analyzeButton}
+                      onClick={handleAnalyze}
+                      title="Uses local text extraction - PHI stays on server"
+                    >
+                      <svg
+                        className={styles.buttonIcon}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        />
+                        <path
+                          d="M9 12L11 14L15 10"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      Analyze (PHI-Safe)
+                    </button>
+                  )}
+                  {onAnalyzeWithVision && isImageFile && (
+                    <button
+                      type="button"
+                      className={styles.visionButton}
+                      onClick={handleVisionAnalyzeClick}
+                      title="Sends image to cloud AI for more accurate analysis"
+                    >
+                      <svg
+                        className={styles.buttonIcon}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="3"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        />
+                      </svg>
+                      Vision AI
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
