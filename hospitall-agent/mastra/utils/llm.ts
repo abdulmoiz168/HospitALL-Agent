@@ -17,7 +17,12 @@ export const getHospitallModel = (): string => {
   const model = process.env.HOSPITALL_LLM_MODEL ?? "vercel/google/gemini-3-flash";
 
   // Ensure model has vercel/ prefix for gateway routing
-  if (!model.startsWith("vercel/") && !model.includes("/")) {
+  if (!model.startsWith("vercel/")) {
+    // Handle formats like "google/gemini-3-flash" -> "vercel/google/gemini-3-flash"
+    // and "gemini-3-flash" -> "vercel/google/gemini-3-flash"
+    if (model.includes("/")) {
+      return `vercel/${model}`;
+    }
     return `vercel/google/${model}`;
   }
 
