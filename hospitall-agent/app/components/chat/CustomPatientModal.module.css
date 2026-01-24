@@ -1,0 +1,541 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.modal {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.modalHeader h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-secondary, #64748b);
+  transition: color 0.15s ease;
+}
+
+.closeButton:hover {
+  color: var(--text-primary, #1e293b);
+}
+
+.closeButton svg {
+  width: 24px;
+  height: 24px;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  padding: 0 24px;
+}
+
+.tab {
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+  transition: all 0.15s ease;
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: var(--text-primary, #1e293b);
+}
+
+.activeTab {
+  color: var(--primary-color, #0ea5e9);
+  border-bottom-color: var(--primary-color, #0ea5e9);
+}
+
+.modalContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.tabContent {
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tabDescription {
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+  margin: 0 0 16px 0;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 500px) {
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formGroup label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #1e293b);
+}
+
+.formGroup input,
+.formGroup select,
+.formGroup textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-primary, #1e293b);
+  background: white;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.formGroup input:focus,
+.formGroup select:focus,
+.formGroup textarea:focus {
+  outline: none;
+  border-color: var(--primary-color, #0ea5e9);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.formGroup textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.chipGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.chip {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 20px;
+  background: white;
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: var(--primary-color, #0ea5e9);
+  color: var(--primary-color, #0ea5e9);
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chipSelected {
+  background: var(--primary-color, #0ea5e9);
+  border-color: var(--primary-color, #0ea5e9);
+  color: white;
+}
+
+.chipSelected:hover {
+  background: var(--primary-dark, #0284c7);
+  border-color: var(--primary-dark, #0284c7);
+  color: white;
+}
+
+.customInput {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.customInput input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.customInput input:focus {
+  outline: none;
+  border-color: var(--primary-color, #0ea5e9);
+}
+
+.customInput button {
+  padding: 10px 16px;
+  background: var(--primary-color, #0ea5e9);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.customInput button:hover {
+  background: var(--primary-dark, #0284c7);
+}
+
+.selectedList {
+  background: var(--bg-secondary, #f8fafc);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.selectedList h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+}
+
+.selectedItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: white;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-primary, #1e293b);
+  margin: 2px;
+}
+
+.selectedItem button {
+  background: none;
+  border: none;
+  color: var(--text-tertiary, #94a3b8);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.selectedItem button:hover {
+  color: var(--error-color, #ef4444);
+}
+
+.medCategory {
+  margin-bottom: 16px;
+}
+
+.medCategory h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+}
+
+.customMedInput {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 600px) {
+  .customMedInput {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .customMedInput input:first-child {
+    grid-column: span 2;
+  }
+}
+
+.customMedInput input {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.customMedInput input:focus {
+  outline: none;
+  border-color: var(--primary-color, #0ea5e9);
+}
+
+.customMedInput button {
+  padding: 10px 16px;
+  background: var(--primary-color, #0ea5e9);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.customMedInput button:hover {
+  background: var(--primary-dark, #0284c7);
+}
+
+.medicationList {
+  background: var(--bg-secondary, #f8fafc);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.medicationList h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+}
+
+.medicationItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: white;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.medicationItem:last-child {
+  margin-bottom: 0;
+}
+
+.medName {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-primary, #1e293b);
+}
+
+.medDetails {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+}
+
+.medicationItem button {
+  background: none;
+  border: none;
+  color: var(--text-tertiary, #94a3b8);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.medicationItem button:hover {
+  color: var(--error-color, #ef4444);
+}
+
+.customAllergyInput {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.customAllergyInput input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.customAllergyInput input:focus {
+  outline: none;
+  border-color: var(--primary-color, #0ea5e9);
+}
+
+.customAllergyInput select {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+}
+
+.customAllergyInput button {
+  padding: 10px 16px;
+  background: var(--primary-color, #0ea5e9);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.allergyList {
+  background: var(--bg-secondary, #f8fafc);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.allergyList h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+}
+
+.allergyItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: white;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.allergyItem:last-child {
+  margin-bottom: 0;
+}
+
+.allergenName {
+  flex: 1;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-primary, #1e293b);
+}
+
+.allergyItem select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.severityMild {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.severityModerate {
+  background: #fef9c3;
+  color: #854d0e;
+  border-color: #fde047;
+}
+
+.severitySevere {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+.allergyItem button {
+  background: none;
+  border: none;
+  color: var(--text-tertiary, #94a3b8);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.allergyItem button:hover {
+  color: var(--error-color, #ef4444);
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+}
+
+.cancelButton {
+  padding: 10px 20px;
+  background: white;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cancelButton:hover {
+  background: var(--bg-secondary, #f8fafc);
+  color: var(--text-primary, #1e293b);
+}
+
+.saveButton {
+  padding: 10px 24px;
+  background: var(--primary-color, #0ea5e9);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: var(--primary-dark, #0284c7);
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

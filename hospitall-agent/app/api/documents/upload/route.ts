@@ -303,7 +303,9 @@ const analyzeWithVision = async (
     baseURL: "https://ai-gateway.vercel.sh/v1",
   });
 
-  const model = process.env.HOSPITALL_LLM_MODEL ?? "google/gemini-3.0-flash";
+  // Strip vercel/ prefix if present (AI Gateway expects provider/model format)
+  const rawModel = process.env.HOSPITALL_LLM_MODEL ?? "google/gemini-3-flash";
+  const model = rawModel.startsWith("vercel/") ? rawModel.slice(7) : rawModel;
 
   // Convert buffer to base64
   const base64Image = buffer.toString("base64");

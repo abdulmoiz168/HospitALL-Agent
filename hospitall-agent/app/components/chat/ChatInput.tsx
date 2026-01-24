@@ -36,9 +36,7 @@ export interface ChatInputProps {
 /** Default quick actions for the chat */
 const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
   { id: 'symptoms', label: 'Check symptoms', message: 'I would like to check my symptoms' },
-  { id: 'medications', label: 'Review medications', message: 'Can you review my current medications?' },
-  { id: 'labs', label: 'Lab results', message: 'Please help me understand my lab results' },
-  { id: 'doctor', label: 'Find doctor', message: 'I need to find a doctor for my condition' },
+  { id: 'doctor', label: 'Find a doctor', message: 'I need to find a doctor for my condition' },
 ];
 
 /**

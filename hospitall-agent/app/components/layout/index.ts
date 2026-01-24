@@ -17,3 +17,6 @@ export type { RoleSwitchProps } from './RoleSwitch';
 // ProfileSelector
 export { ProfileSelector, default as ProfileSelectorDefault } from './ProfileSelector';
 export type { ProfileSelectorProps } from './ProfileSelector';
+
+// GlobalPatientSelector
+export { GlobalPatientSelector, default as GlobalPatientSelectorDefault } from './GlobalPatientSelector';

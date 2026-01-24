@@ -164,15 +164,63 @@
   max-width: 400px;
 }
 
+/* Patient indicator button (when patient is selected) */
+.patientIndicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--primary-50);
+  border: 1px solid var(--primary-200);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: var(--transition-all);
+}
+
+.patientIndicator:hover {
+  background: var(--primary-100);
+  border-color: var(--primary-300);
+}
+
+.patientIndicatorIcon {
+  width: 18px;
+  height: 18px;
+  color: var(--primary-600);
+}
+
+.patientIndicator span {
+  color: var(--primary-700);
+  font-weight: var(--font-medium);
+}
+
+.patientIndicatorAge {
+  padding: 1px 4px;
+  background: var(--primary-100);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--primary-600);
+}
+
+/* Select patient button (when no patient is selected) */
 .selectPatientButton {
-  padding: var(--space-sm) var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
   background: var(--primary-600);
   color: white;
   border: none;
   border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
   font-weight: var(--font-medium);
   cursor: pointer;
   transition: var(--transition-all);
+}
+
+.selectPatientButton svg {
+  width: 18px;
+  height: 18px;
 }
 
 .selectPatientButton:hover {

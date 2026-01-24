@@ -82,6 +82,51 @@
 }
 
 /* ==========================================================================
+   Mode Indicator (Patient Mode)
+   ========================================================================== */
+
+.modeIndicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.patientContextButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--primary-50, #f0f9ff);
+  border: 1px solid var(--primary-200, #bae6fd);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-all);
+  font-size: var(--text-sm);
+}
+
+.patientContextButton:hover {
+  background: var(--primary-100, #e0f2fe);
+  border-color: var(--primary-300, #7dd3fc);
+}
+
+.patientContextButton .patientName {
+  font-weight: var(--font-semibold);
+  color: var(--primary-700, #0369a1);
+}
+
+.patientContextButton .patientDetails {
+  font-size: var(--text-xs);
+  color: var(--primary-600, #0284c7);
+  padding: 1px 4px;
+  background: var(--primary-100, #e0f2fe);
+  border-radius: var(--radius-sm);
+}
+
+.patientContextButton svg {
+  color: var(--primary-500, #0ea5e9);
+}
+
+/* ==========================================================================
    Admin Indicator
    ========================================================================== */
 
@@ -176,6 +221,10 @@
   }
 
   .adminIndicator {
+    display: none;
+  }
+
+  .modeIndicator {
     display: none;
   }
 

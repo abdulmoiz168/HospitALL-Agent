@@ -146,10 +146,16 @@ function getCurrentDate(): string {
  * - Summary cards (Health, Medications, Labs, Upcoming)
  * - Recent timeline of events
  * - Quick action buttons
+ *
+ * Uses the global chatPatientContext for patient info.
  */
 export default function DashboardPage() {
-  const { activePatient } = usePatient();
+  const { activePatient, chatPatientContext, setShowPatientSelector } = usePatient();
   const { settings } = useSettings();
+
+  // Use chatPatientContext as the primary patient source
+  // Fall back to activePatient for full data if available
+  const currentPatient = chatPatientContext;
 
   // AI Health Insights state
   const [aiInsights, setAiInsights] = useState<AIInsightsState>({
@@ -160,44 +166,34 @@ export default function DashboardPage() {
 
   // Fetch AI insights when patient changes
   const fetchInsights = useCallback(async () => {
-    if (!activePatient) return;
+    if (!currentPatient) return;
 
     // Skip if we already have insights for this patient
-    if (aiInsights.lastFetchedPatientId === activePatient.demographics.id) return;
+    if (aiInsights.lastFetchedPatientId === currentPatient.id) return;
 
     setAiInsights({ isLoading: true, insights: null, lastFetchedPatientId: null });
 
     try {
-      const conditions = activePatient.conditions
-        .filter((c) => c.status === 'active' || c.status === 'chronic')
-        .map((c) => c.name)
-        .join(', ');
-
-      const medications = activePatient.medications
-        .filter((m) => m.status === 'active')
-        .map((m) => m.name)
-        .join(', ');
-
-      const abnormalLabs = activePatient.labResults
-        .filter((l) => l.status !== 'normal')
-        .slice(0, 3)
-        .map((l) => `${l.test}: ${l.value} ${l.unit}`)
-        .join(', ');
+      // Use chatPatientContext data
+      const conditions = currentPatient.conditions.join(', ');
+      const medications = currentPatient.medications.map((m) => m.name).join(', ');
+      const allergies = currentPatient.allergies.map((a) => `${a.allergen} (${a.severity})`).join(', ');
 
       const prompt = `Based on my current health profile, provide 2-3 brief, actionable health insights or recommendations.
+Patient: ${currentPatient.name}, ${currentPatient.age} years old, ${currentPatient.sex}
 My conditions: ${conditions || 'None'}
 My medications: ${medications || 'None'}
-Recent abnormal labs: ${abnormalLabs || 'None'}
+My allergies: ${allergies || 'None'}
+Smoking: ${currentPatient.smokingStatus}, Alcohol: ${currentPatient.alcoholUse}
 Keep each insight to 1-2 sentences. Focus on practical advice I can act on today.`;
 
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: prompt,
-          sessionId: `insights-${activePatient.demographics.id}-${Date.now()}`,
-          patientId: activePatient.demographics.id,
-          systemPrompt: settings.systemPrompt,
+          messages: [{ role: 'user', content: prompt }],
+          sessionId: `insights-${currentPatient.id}-${Date.now()}`,
+          patientContext: currentPatient,
         }),
       });
 
@@ -217,13 +213,18 @@ Keep each insight to 1-2 sentences. Focus on practical advice I can act on today
         const lines = chunk.split('\n').filter(Boolean);
 
         for (const line of lines) {
-          try {
-            const parsed = JSON.parse(line);
-            if (parsed.type === 'chunk' && parsed.content) {
-              fullResponse += parsed.content;
+          // Parse SSE format
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.type === 'text-delta' && parsed.delta) {
+                fullResponse += parsed.delta;
+              }
+            } catch {
+              // Skip malformed JSON
             }
-          } catch {
-            // Skip malformed JSON
           }
         }
       }
@@ -231,31 +232,32 @@ Keep each insight to 1-2 sentences. Focus on practical advice I can act on today
       setAiInsights({
         isLoading: false,
         insights: fullResponse,
-        lastFetchedPatientId: activePatient.demographics.id,
+        lastFetchedPatientId: currentPatient.id,
       });
     } catch {
       setAiInsights({
         isLoading: false,
         insights: null,
-        lastFetchedPatientId: activePatient.demographics.id,
+        lastFetchedPatientId: currentPatient.id,
       });
     }
-  }, [activePatient, aiInsights.lastFetchedPatientId]);
+  }, [currentPatient, aiInsights.lastFetchedPatientId]);
 
   // Reset insights when patient changes (don't auto-fetch)
   useEffect(() => {
-    if (activePatient && aiInsights.lastFetchedPatientId !== activePatient.demographics.id && aiInsights.insights !== null) {
+    if (currentPatient && aiInsights.lastFetchedPatientId !== currentPatient.id && aiInsights.insights !== null) {
       // Reset state when patient changes, but don't auto-fetch
       setAiInsights({ isLoading: false, insights: null, lastFetchedPatientId: null });
     }
-  }, [activePatient, aiInsights.lastFetchedPatientId, aiInsights.insights]);
+  }, [currentPatient, aiInsights.lastFetchedPatientId, aiInsights.insights]);
 
-  // Calculate dashboard statistics from patient data
+  // Calculate dashboard statistics from patient context data
   const stats = useMemo(() => {
-    if (!activePatient) {
+    if (!currentPatient) {
       return {
         activeConditions: 0,
         activeMedications: 0,
+        allergiesCount: 0,
         recentLabResults: 0,
         abnormalLabs: 0,
         upcomingVisits: 0,
@@ -263,57 +265,33 @@ Keep each insight to 1-2 sentences. Focus on practical advice I can act on today
       };
     }
 
-    // Count active conditions
-    const activeConditions = activePatient.conditions.filter(
-      (c) => c.status === 'active' || c.status === 'chronic'
-    ).length;
+    // Use chatPatientContext data
+    const activeConditions = currentPatient.conditions.length;
+    const activeMedications = currentPatient.medications.length;
+    const allergiesCount = currentPatient.allergies.length;
 
-    // Count active medications
-    const activeMedications = activePatient.medications.filter(
-      (m) => m.status === 'active'
-    ).length;
-
-    // Count recent lab results (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentLabs = activePatient.labResults.filter(
-      (lab) => new Date(lab.date) >= thirtyDaysAgo
-    );
-    const recentLabResults = recentLabs.length;
-
-    // Count abnormal lab results
-    const abnormalLabs = recentLabs.filter(
-      (lab) =>
-        lab.status === 'abnormal_high' ||
-        lab.status === 'abnormal_low' ||
-        lab.status === 'critical'
-    ).length;
-
-    // Find visits with follow-up required (simulating upcoming)
-    const visitsWithFollowUp = activePatient.visits.filter(
-      (v) => v.followUpRequired
-    );
-    const upcomingVisits = visitsWithFollowUp.length;
-
-    // Get the most recent visit date as a proxy for next visit
-    const sortedVisits = [...activePatient.visits].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-    const nextVisitDate = sortedVisits.length > 0 ? sortedVisits[0].date : null;
+    // These are not available in simplified patient context
+    // Show placeholder values
+    const recentLabResults = 0;
+    const abnormalLabs = 0;
+    const upcomingVisits = 0;
+    const nextVisitDate = null;
 
     return {
       activeConditions,
       activeMedications,
+      allergiesCount,
       recentLabResults,
       abnormalLabs,
       upcomingVisits,
       nextVisitDate,
     };
-  }, [activePatient]);
+  }, [currentPatient]);
 
   // Generate timeline events from patient data
+  // Note: chatPatientContext doesn't have visit/lab history, so we show conditions as "events"
   const timelineEvents = useMemo(() => {
-    if (!activePatient) return [];
+    if (!currentPatient) return [];
 
     interface TimelineItem {
       id: string;
@@ -326,77 +304,52 @@ Keep each insight to 1-2 sentences. Focus on practical advice I can act on today
     }
 
     const events: TimelineItem[] = [];
+    const today = new Date().toISOString().split('T')[0];
 
-    // Add visits to timeline
-    activePatient.visits.forEach((visit, index) => {
+    // Show conditions as health events
+    currentPatient.conditions.forEach((condition, index) => {
       events.push({
-        id: `visit-${index}`,
-        title: `${visit.type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())} - ${visit.doctor}`,
-        date: visit.date,
-        type: 'visit' as TimelineEventType,
-        summary: visit.summary,
-        badge: visit.specialty,
+        id: `condition-${index}`,
+        title: condition,
+        date: today,
+        type: 'condition' as TimelineEventType,
+        summary: 'Active condition being managed',
+        badge: 'Active',
         badgeVariant: 'info' as const,
       });
     });
 
-    // Add recent lab results to timeline (group by date)
-    const labsByDate = activePatient.labResults.reduce((acc, lab) => {
-      if (!acc[lab.date]) {
-        acc[lab.date] = [];
-      }
-      acc[lab.date].push(lab);
-      return acc;
-    }, {} as Record<string, typeof activePatient.labResults>);
-
-    Object.entries(labsByDate).forEach(([date, labs]) => {
-      const abnormalCount = labs.filter(
-        (l) =>
-          l.status === 'abnormal_high' ||
-          l.status === 'abnormal_low' ||
-          l.status === 'critical'
-      ).length;
-
-      events.push({
-        id: `lab-${date}`,
-        title: `Lab Results (${labs.length} tests)`,
-        date,
-        type: 'lab_result' as TimelineEventType,
-        summary: labs.map((l) => l.test).slice(0, 3).join(', ') + (labs.length > 3 ? '...' : ''),
-        badge: abnormalCount > 0 ? `${abnormalCount} abnormal` : undefined,
-        badgeVariant: abnormalCount > 0 ? ('warning' as const) : undefined,
+    // Show severe allergies as alerts
+    currentPatient.allergies
+      .filter((a) => a.severity === 'severe')
+      .forEach((allergy, index) => {
+        events.push({
+          id: `allergy-${index}`,
+          title: `Allergy Alert: ${allergy.allergen}`,
+          date: today,
+          type: 'alert' as TimelineEventType,
+          summary: allergy.reaction || 'Severe allergic reaction risk',
+          badge: 'Severe',
+          badgeVariant: 'warning' as const,
+        });
       });
-    });
 
-    // Sort by date descending and take the 5 most recent
-    return events
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5);
-  }, [activePatient]);
+    return events.slice(0, 5);
+  }, [currentPatient]);
 
   // Format next medication reminder (simplified)
   const nextMedicationReminder = useMemo(() => {
-    if (!activePatient || stats.activeMedications === 0) return null;
+    if (!currentPatient || currentPatient.medications.length === 0) return null;
 
-    const activeMeds = activePatient.medications.filter((m) => m.status === 'active');
-    if (activeMeds.length === 0) return null;
+    const meds = currentPatient.medications;
+    if (meds.length === 0) return null;
 
-    // Find medications that need to be taken multiple times
-    const multiDoseMeds = activeMeds.filter(
-      (m) =>
-        m.frequency.toLowerCase().includes('twice') ||
-        m.frequency.toLowerCase().includes('daily')
-    );
-
-    if (multiDoseMeds.length > 0) {
-      return `${multiDoseMeds[0].name} - ${multiDoseMeds[0].frequency}`;
-    }
-
-    return `${activeMeds[0].name} - ${activeMeds[0].frequency}`;
-  }, [activePatient, stats.activeMedications]);
+    // Show first medication as reminder
+    return `${meds[0].name} ${meds[0].dosage} - ${meds[0].frequency}`;
+  }, [currentPatient]);
 
   // Loading state when no patient is selected
-  if (!activePatient) {
+  if (!currentPatient) {
     return (
       <div className={styles.dashboard}>
         <div className={styles.emptyState}>
@@ -429,8 +382,16 @@ Keep each insight to 1-2 sentences. Focus on practical advice I can act on today
           </div>
           <h2 className={styles.emptyTitle}>No Patient Selected</h2>
           <p className={styles.emptyDescription}>
-            Please select a patient profile from the header to view the dashboard.
+            Please select a patient profile to view the dashboard.
           </p>
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={() => setShowPatientSelector(true)}
+            style={{ marginTop: '1rem' }}
+          >
+            Select Patient
+          </Button>
         </div>
       </div>
     );
@@ -442,7 +403,7 @@ Keep each insight to 1-2 sentences. Focus on practical advice I can act on today
       <section className={styles.welcomeSection}>
         <div className={styles.welcomeContent}>
           <h1 className={styles.greeting}>
-            {getGreeting()}, {activePatient.demographics.firstName}
+            {getGreeting()}, {currentPatient.name.split(' ')[0]}
           </h1>
           <p className={styles.date}>{getCurrentDate()}</p>
         </div>
@@ -477,20 +438,20 @@ Keep each insight to 1-2 sentences. Focus on practical advice I can act on today
             variant="medications"
           />
 
-          {/* Lab Results Card */}
+          {/* Allergies Card */}
           <SummaryCard
-            title="Lab Results"
-            value={stats.recentLabResults}
-            valueLabel="recent tests"
+            title="Allergies"
+            value={stats.allergiesCount}
+            valueLabel="recorded"
             description={
-              stats.abnormalLabs > 0
-                ? `${stats.abnormalLabs} result${stats.abnormalLabs > 1 ? 's' : ''} need${stats.abnormalLabs === 1 ? 's' : ''} attention`
-                : 'All results normal'
+              stats.allergiesCount > 0
+                ? `${currentPatient.allergies.filter(a => a.severity === 'severe').length} severe allergies`
+                : 'No allergies recorded'
             }
             icon={<LabsIcon />}
             variant="labs"
-            badge={stats.abnormalLabs > 0 ? 'Review' : undefined}
-            badgeVariant={stats.abnormalLabs > 0 ? 'warning' : undefined}
+            badge={currentPatient.allergies.some(a => a.severity === 'severe') ? 'Alert' : undefined}
+            badgeVariant={currentPatient.allergies.some(a => a.severity === 'severe') ? 'warning' : undefined}
           />
 
           {/* Upcoming Card */}

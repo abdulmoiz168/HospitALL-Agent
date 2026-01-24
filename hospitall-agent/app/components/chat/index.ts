@@ -17,3 +17,10 @@ export type { DocumentUploadProps, UploadStatus } from './DocumentUpload';
 // DoctorCard
 export { DoctorCard, default as DoctorCardDefault } from './DoctorCard';
 export type { DoctorCardProps } from './DoctorCard';
+
+// PatientSelector
+export { PatientSelector, default as PatientSelectorDefault } from './PatientSelector';
+export type { PatientContext } from './PatientSelector';
+
+// CustomPatientModal
+export { CustomPatientModal, default as CustomPatientModalDefault } from './CustomPatientModal';

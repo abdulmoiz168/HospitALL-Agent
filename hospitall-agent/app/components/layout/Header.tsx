@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useRole } from '@/lib/hooks';
+import { useRole, usePatient } from '@/lib/hooks';
 import { Badge } from '@/app/components/ui';
 import { RoleSwitch } from './RoleSwitch';
+import { GlobalPatientSelector } from './GlobalPatientSelector';
 import styles from './Header.module.css';
 
 export interface HeaderProps {
@@ -13,13 +14,26 @@ export interface HeaderProps {
 }
 
 /**
- * Top bar with role indicator and role switch.
+ * Top bar with role indicator, patient context indicator, and role switch.
+ * Shows patient selector modal when in patient mode.
  * Accessible with semantic HTML and ARIA attributes.
  */
 export const Header: React.FC<HeaderProps> = ({ className = '' }) => {
   const { isPatient, isAdmin, role } = useRole();
+  const { chatPatientContext, showPatientSelector, setShowPatientSelector } = usePatient();
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Show patient selector if in patient mode with no patient selected
+  useEffect(() => {
+    if (isPatient && !chatPatientContext && !showPatientSelector) {
+      // Small delay to prevent flash on initial load
+      const timer = setTimeout(() => {
+        setShowPatientSelector(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isPatient, chatPatientContext, showPatientSelector, setShowPatientSelector]);
 
   const handleLogout = useCallback(async () => {
     setIsLoggingOut(true);
@@ -64,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({ className = '' }) => {
           <span className={styles.brandName}>HospitALL</span>
         </div>
 
-        {/* Patient Mode Indicator */}
+        {/* Patient Mode Indicator with Patient Context */}
         {isPatient && (
           <div className={styles.modeIndicator}>
             <Badge variant="success" size="sm">
@@ -89,6 +103,35 @@ export const Header: React.FC<HeaderProps> = ({ className = '' }) => {
               </svg>
               Patient Mode
             </Badge>
+            {chatPatientContext && (
+              <button
+                type="button"
+                className={styles.patientContextButton}
+                onClick={() => setShowPatientSelector(true)}
+                title="Change patient context"
+              >
+                <span className={styles.patientName}>{chatPatientContext.name}</span>
+                <span className={styles.patientDetails}>
+                  {chatPatientContext.age}{chatPatientContext.sex === 'male' ? 'M' : 'F'}
+                </span>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M6 9L12 15L18 9"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            )}
           </div>
         )}
 
@@ -172,6 +215,13 @@ export const Header: React.FC<HeaderProps> = ({ className = '' }) => {
           </span>
         </button>
       </div>
+
+      {/* Global Patient Selector Modal */}
+      <GlobalPatientSelector
+        isOpen={showPatientSelector}
+        onClose={() => setShowPatientSelector(false)}
+        required={isPatient && !chatPatientContext}
+      />
     </header>
   );
 };

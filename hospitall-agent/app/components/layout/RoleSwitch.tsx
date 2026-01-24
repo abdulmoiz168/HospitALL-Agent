@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useId } from 'react';
-import { useRole } from '@/lib/hooks';
+import { useRole, usePatient } from '@/lib/hooks';
 import styles from './RoleSwitch.module.css';
 
 export interface RoleSwitchProps {
@@ -12,15 +12,27 @@ export interface RoleSwitchProps {
 /**
  * Toggle switch to switch between Patient and Admin modes.
  * Uses the useRole hook for state management.
+ * When switching to patient mode, triggers patient selector if no patient is selected.
  * Accessible with keyboard navigation and ARIA attributes.
  */
 export const RoleSwitch: React.FC<RoleSwitchProps> = ({ className = '' }) => {
   const { role, setRole, isAdmin } = useRole();
+  const { chatPatientContext, setShowPatientSelector } = usePatient();
   const switchId = useId();
 
   const handleToggle = useCallback(() => {
-    setRole(isAdmin ? 'patient' : 'admin');
-  }, [isAdmin, setRole]);
+    if (isAdmin) {
+      // Switching to patient mode
+      setRole('patient');
+      // Show patient selector if no patient is selected
+      if (!chatPatientContext) {
+        setShowPatientSelector(true);
+      }
+    } else {
+      // Switching to admin mode
+      setRole('admin');
+    }
+  }, [isAdmin, setRole, chatPatientContext, setShowPatientSelector]);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent) => {

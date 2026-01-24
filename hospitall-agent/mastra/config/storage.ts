@@ -1,20 +1,33 @@
-import { LibSQLStore } from "@mastra/libsql";
+import { PostgresStore, PgVector } from "@mastra/pg";
 
-// Only create storage if a proper database URL is configured
-// File-based storage (file:./...) doesn't work on Vercel serverless
-const createStorage = () => {
-  const dbUrl = process.env.MASTRA_DB_URL;
+// Connection string for Supabase - requires direct Postgres connection (not REST API)
+// Supports both DATABASE_URL (Vercel default) and SUPABASE_DB_URL
+const connectionString = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
 
-  // Skip storage if no URL configured or if it's a file URL (won't work on Vercel)
-  if (!dbUrl || dbUrl.startsWith("file:")) {
-    console.log("[mastra/storage] No remote database configured, storage disabled");
-    return undefined;
-  }
+/**
+ * PostgresStore for Mastra memory and workflow state
+ */
+export const storage = connectionString
+  ? new PostgresStore({
+      id: "hospitall-storage",
+      connectionString,
+    })
+  : undefined;
 
-  return new LibSQLStore({
-    id: "hospitall-storage",
-    url: dbUrl,
-  });
-};
+/**
+ * PgVector for vector embeddings (RAG and semantic memory)
+ * Uses pgvector extension in Supabase
+ */
+export const vectorStore = connectionString
+  ? new PgVector({
+      id: "hospitall-vectors",
+      connectionString,
+    })
+  : undefined;
 
-export const storage = createStorage();
+// Log configuration status
+if (!connectionString) {
+  console.log("[mastra/storage] DATABASE_URL/SUPABASE_DB_URL not configured - storage and vectors disabled");
+} else {
+  console.log("[mastra/storage] PostgresStore and PgVector configured for Supabase");
+}

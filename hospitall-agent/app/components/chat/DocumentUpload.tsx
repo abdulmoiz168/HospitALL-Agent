@@ -12,9 +12,7 @@ export interface DocumentUploadProps {
   onClose: () => void;
   /** Called when file is selected and ready to upload */
   onUpload: (file: File) => Promise<void>;
-  /** Called when document analysis is complete (PHI-safe local OCR) */
-  onAnalyze?: (file: File) => void;
-  /** Called when vision AI analysis is requested (sends image to cloud) */
+  /** Called when document analysis is requested */
   onAnalyzeWithVision?: (file: File) => void;
   /** Accepted file types */
   acceptedTypes?: string[];
@@ -61,13 +59,11 @@ function formatFileSize(bytes: number): string {
 /**
  * DocumentUpload component for uploading medical documents.
  * Features a dropzone, progress indicator, and success/error states.
- * Offers two analysis modes: PHI-safe (local OCR) and Vision AI (cloud).
  */
 export const DocumentUpload: React.FC<DocumentUploadProps> = ({
   isOpen,
   onClose,
   onUpload,
-  onAnalyze,
   onAnalyzeWithVision,
   acceptedTypes = DEFAULT_ACCEPTED_TYPES,
   maxSize = DEFAULT_MAX_SIZE,
@@ -223,15 +219,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     setError(null);
   }, []);
 
-  // Handle PHI-safe analyze (local OCR)
-  const handleAnalyze = useCallback(() => {
-    if (selectedFile && onAnalyze) {
-      onAnalyze(selectedFile);
-      onClose();
-    }
-  }, [selectedFile, onAnalyze, onClose]);
-
-  // Handle Vision AI analyze (show confirmation first)
+  // Handle analyze (show confirmation first)
   const handleVisionAnalyzeClick = useCallback(() => {
     setShowVisionConfirm(true);
   }, []);
@@ -503,7 +491,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
                 className={styles.visionConfirmButton}
                 onClick={handleVisionConfirm}
               >
-                Yes, Use Vision AI
+                Analyze
               </button>
             </>
           ) : (
@@ -515,51 +503,15 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
               >
                 Cancel
               </button>
-              {status === 'success' && (
-                <div className={styles.analyzeButtons}>
-                  {onAnalyze && (
-                    <button
-                      type="button"
-                      className={styles.analyzeButton}
-                      onClick={handleAnalyze}
-                      title="Uses local text extraction - PHI stays on server"
-                    >
-                      Analyze (PHI-Safe)
-                    </button>
-                  )}
-                  {onAnalyzeWithVision && isImageFile && (
-                    <button
-                      type="button"
-                      className={styles.visionButton}
-                      onClick={handleVisionAnalyzeClick}
-                      title="Sends image to cloud AI for more accurate analysis"
-                    >
-                      <svg
-                        className={styles.buttonIcon}
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        aria-hidden="true"
-                      >
-                        <path
-                          d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="3"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        />
-                      </svg>
-                      Vision AI
-                    </button>
-                  )}
-                </div>
+              {status === 'success' && onAnalyzeWithVision && isImageFile && (
+                <button
+                  type="button"
+                  className={styles.analyzeButton}
+                  onClick={handleVisionAnalyzeClick}
+                  title="Analyze document with AI"
+                >
+                  Analyze
+                </button>
               )}
             </>
           )}

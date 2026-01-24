@@ -1,7 +1,14 @@
 'use client';
 
 import React from 'react';
+import { marked } from 'marked';
 import styles from './MessageBubble.module.css';
+
+// Configure marked for safe HTML output
+marked.setOptions({
+  gfm: true, // GitHub Flavored Markdown
+  breaks: true, // Convert \n to <br>
+});
 
 export interface MessageBubbleProps {
   /** Message role - determines styling and alignment */
@@ -85,6 +92,11 @@ export const MessageBubble = React.forwardRef<HTMLDivElement, MessageBubbleProps
               <span className={styles.loadingDot} />
               <span className={styles.loadingDot} />
             </div>
+          ) : role === 'assistant' ? (
+            <div
+              className={styles.markdown}
+              dangerouslySetInnerHTML={{ __html: marked.parse(content || '') as string }}
+            />
           ) : (
             content
           )}

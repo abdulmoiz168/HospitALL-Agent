@@ -417,9 +417,15 @@ function ExpandableTimelineItem({
  * - Summary cards showing counts
  * - Filter controls for type and date range
  * - Expandable timeline grouped by date
+ *
+ * Uses global chatPatientContext for patient info.
+ * Note: Detailed visit/lab history is only available for full patient profiles.
  */
 export default function HistoryPage() {
-  const { activePatient, sessionDocuments } = usePatient();
+  const { activePatient, sessionDocuments, chatPatientContext, setShowPatientSelector } = usePatient();
+
+  // Use chatPatientContext as primary patient source
+  const currentPatient = chatPatientContext;
 
   // Filter state
   const [filterType, setFilterType] = useState<FilterType>('all');
@@ -441,96 +447,90 @@ export default function HistoryPage() {
     });
   }, []);
 
-  // Calculate summary statistics
+  // Calculate summary statistics based on chatPatientContext
   const stats = useMemo(() => {
-    if (!activePatient) {
+    if (!currentPatient) {
       return {
-        totalVisits: 0,
-        totalLabTests: 0,
+        totalConditions: 0,
+        totalMedications: 0,
+        totalAllergies: 0,
         totalDocuments: 0,
-        timeSpan: 'No records',
-        allDates: [] as string[],
       };
     }
 
-    const totalVisits = activePatient.visits.length;
-    const totalLabTests = activePatient.labResults.length;
-    const totalDocuments = sessionDocuments.length;
-
-    // Collect all dates for time span calculation
-    const allDates = [
-      ...activePatient.visits.map((v) => v.date),
-      ...activePatient.labResults.map((l) => l.date),
-    ];
-
-    const timeSpan = calculateTimeSpan(allDates);
-
     return {
-      totalVisits,
-      totalLabTests,
-      totalDocuments,
-      timeSpan,
-      allDates,
+      totalConditions: currentPatient.conditions.length,
+      totalMedications: currentPatient.medications.length,
+      totalAllergies: currentPatient.allergies.length,
+      totalDocuments: sessionDocuments.length,
     };
-  }, [activePatient, sessionDocuments]);
+  }, [currentPatient, sessionDocuments]);
 
-  // Generate timeline events from patient data
+  // Generate timeline events from chatPatientContext data
+  // Note: chatPatientContext has conditions, medications, allergies but no visit/lab history
   const allEvents = useMemo((): HistoryEvent[] => {
-    if (!activePatient) return [];
+    if (!currentPatient) return [];
 
     const events: HistoryEvent[] = [];
+    const today = new Date().toISOString().split('T')[0];
 
-    // Add visits
-    activePatient.visits.forEach((visit, index) => {
-      const typeLabel = visit.type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+    // Add conditions as health profile items
+    currentPatient.conditions.forEach((condition, index) => {
       events.push({
-        id: `visit-${index}`,
-        type: 'visit',
-        title: `${typeLabel} - ${visit.doctor}`,
-        date: visit.date,
-        summary: visit.summary,
+        id: `condition-${index}`,
+        type: 'visit', // Using visit type for conditions
+        title: condition,
+        date: today,
+        summary: 'Active medical condition',
         details: [
-          `Doctor: ${visit.doctor}`,
-          visit.specialty ? `Specialty: ${visit.specialty}` : '',
-          `Type: ${typeLabel}`,
-          visit.followUpRequired ? 'Follow-up required' : 'No follow-up needed',
-          visit.summary,
-        ].filter(Boolean),
-        badge: visit.specialty,
+          `Condition: ${condition}`,
+          'Status: Active',
+          'This condition is part of the patient\'s medical history.',
+        ],
+        badge: 'Active',
         badgeVariant: 'info',
       });
     });
 
-    // Add lab results
-    activePatient.labResults.forEach((lab, index) => {
-      const statusLabels: Record<string, string> = {
-        normal: 'Normal',
-        abnormal_low: 'Low',
-        abnormal_high: 'High',
-        critical: 'Critical',
-      };
-      const statusBadgeVariants: Record<string, BadgeVariant> = {
-        normal: 'success',
-        abnormal_low: 'warning',
-        abnormal_high: 'warning',
-        critical: 'emergency',
+    // Add medications
+    currentPatient.medications.forEach((med, index) => {
+      events.push({
+        id: `medication-${index}`,
+        type: 'lab_result', // Using lab type for medications
+        title: `${med.name} ${med.dosage}`,
+        date: today,
+        summary: `${med.frequency}`,
+        details: [
+          `Medication: ${med.name}`,
+          `Dosage: ${med.dosage}`,
+          `Frequency: ${med.frequency}`,
+        ],
+        badge: 'Current',
+        badgeVariant: 'success',
+      });
+    });
+
+    // Add allergies
+    currentPatient.allergies.forEach((allergy, index) => {
+      const severityVariants: Record<string, BadgeVariant> = {
+        mild: 'info',
+        moderate: 'warning',
+        severe: 'emergency',
       };
 
       events.push({
-        id: `lab-${index}`,
+        id: `allergy-${index}`,
         type: 'lab_result',
-        title: lab.test,
-        date: lab.date,
-        summary: `${lab.value} ${lab.unit} (Reference: ${lab.referenceRange})`,
+        title: `Allergy: ${allergy.allergen}`,
+        date: today,
+        summary: allergy.reaction || `${allergy.severity} allergic reaction`,
         details: [
-          `Test: ${lab.test}`,
-          `Result: ${lab.value} ${lab.unit}`,
-          `Reference Range: ${lab.referenceRange}`,
-          `Status: ${lab.status ? statusLabels[lab.status] : 'Pending'}`,
-          lab.notes ? `Notes: ${lab.notes}` : '',
+          `Allergen: ${allergy.allergen}`,
+          `Severity: ${allergy.severity}`,
+          allergy.reaction ? `Reaction: ${allergy.reaction}` : '',
         ].filter(Boolean),
-        badge: lab.status ? statusLabels[lab.status] : undefined,
-        badgeVariant: lab.status ? statusBadgeVariants[lab.status] : undefined,
+        badge: allergy.severity.charAt(0).toUpperCase() + allergy.severity.slice(1),
+        badgeVariant: severityVariants[allergy.severity] || 'warning',
       });
     });
 
@@ -553,7 +553,7 @@ export default function HistoryPage() {
     });
 
     return events;
-  }, [activePatient, sessionDocuments]);
+  }, [currentPatient, sessionDocuments]);
 
   // Apply filters
   const filteredEvents = useMemo(() => {
@@ -609,7 +609,7 @@ export default function HistoryPage() {
   }, [filteredEvents]);
 
   // Empty state when no patient selected
-  if (!activePatient) {
+  if (!currentPatient) {
     return (
       <div className={styles.historyPage}>
         <div className={styles.emptyState}>
@@ -642,8 +642,24 @@ export default function HistoryPage() {
           </div>
           <h2 className={styles.emptyTitle}>No Patient Selected</h2>
           <p className={styles.emptyDescription}>
-            Please select a patient profile from the header to view their history.
+            Please select a patient profile to view their health information.
           </p>
+          <button
+            type="button"
+            onClick={() => setShowPatientSelector(true)}
+            style={{
+              marginTop: '1rem',
+              padding: '0.75rem 1.5rem',
+              background: 'var(--primary-600)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 500,
+            }}
+          >
+            Select Patient
+          </button>
         </div>
       </div>
     );
@@ -653,45 +669,46 @@ export default function HistoryPage() {
     <div className={styles.historyPage}>
       {/* Page Header */}
       <section className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Medical History</h1>
+        <h1 className={styles.pageTitle}>Health Profile</h1>
         <p className={styles.pageSubtitle}>
-          Complete record of visits, lab results, and documents for{' '}
-          {activePatient.demographics.firstName} {activePatient.demographics.lastName}
+          Medical information for {currentPatient.name} ({currentPatient.age}{currentPatient.sex === 'male' ? 'M' : 'F'})
         </p>
       </section>
 
       {/* Summary Cards */}
-      <section className={styles.summarySection} aria-label="History summary">
+      <section className={styles.summarySection} aria-label="Health summary">
         <div className={styles.summaryGrid}>
           <SummaryCard
-            title="Total Visits"
-            value={stats.totalVisits}
-            valueLabel="visits"
-            description={stats.totalVisits > 0 ? 'All recorded visits' : 'No visits recorded'}
+            title="Conditions"
+            value={stats.totalConditions}
+            valueLabel="active"
+            description={stats.totalConditions > 0 ? 'Medical conditions' : 'No conditions recorded'}
             icon={<VisitsIcon />}
             variant="health"
           />
           <SummaryCard
-            title="Lab Tests"
-            value={stats.totalLabTests}
-            valueLabel="tests"
-            description={stats.totalLabTests > 0 ? 'All lab results' : 'No lab tests recorded'}
+            title="Medications"
+            value={stats.totalMedications}
+            valueLabel="current"
+            description={stats.totalMedications > 0 ? 'Active medications' : 'No medications'}
             icon={<LabsIcon />}
+            variant="medications"
+          />
+          <SummaryCard
+            title="Allergies"
+            value={stats.totalAllergies}
+            valueLabel="recorded"
+            description={stats.totalAllergies > 0 ? 'Known allergies' : 'No allergies recorded'}
+            icon={<DocumentsIcon />}
             variant="labs"
+            badge={currentPatient.allergies.some(a => a.severity === 'severe') ? 'Alert' : undefined}
+            badgeVariant="warning"
           />
           <SummaryCard
             title="Documents"
             value={stats.totalDocuments}
             valueLabel="uploaded"
             description={stats.totalDocuments > 0 ? 'Session uploads' : 'No documents uploaded'}
-            icon={<DocumentsIcon />}
-            variant="medications"
-          />
-          <SummaryCard
-            title="Time Span"
-            value={stats.timeSpan.split(' ')[0] || '-'}
-            valueLabel={stats.timeSpan.split(' ').slice(1).join(' ') || ''}
-            description="Record coverage"
             icon={<TimeSpanIcon />}
             variant="upcoming"
           />

@@ -31,6 +31,7 @@ export default function ChatPage() {
     sessionDocuments,
     addSessionDocument,
     clearSessionDocuments,
+    chatPatientContext,
   } = usePatient();
 
   // Settings context for system prompt
@@ -146,6 +147,22 @@ export default function ChatPage() {
           abortControllerRef.current?.abort();
         }, FETCH_TIMEOUT_MS);
 
+        // Build full message history for context (AI SDK format)
+        const messagesForApi = [
+          // Include previous chat history
+          ...chatHistory.map((msg) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+          })),
+          // Add the new user message
+          {
+            id: `msg-${Date.now()}`,
+            role: 'user' as const,
+            content: message,
+          },
+        ];
+
         // Call the actual /api/chat endpoint
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -153,11 +170,14 @@ export default function ChatPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            message,
+            // Send full message history for conversation context
+            messages: messagesForApi,
             sessionId,
             systemPrompt: settings.systemPrompt,
             // Include document context if available for follow-up questions
             documentContext: documentContext || undefined,
+            // Include patient context for personalized responses
+            patientContext: chatPatientContext || undefined,
           }),
           signal,
         });
@@ -168,7 +188,7 @@ export default function ChatPage() {
           throw new Error(`API error: ${response.status}`);
         }
 
-        // Handle streaming response (NDJSON format)
+        // Handle AI SDK streaming response (SSE format)
         const reader = response.body?.getReader();
         if (!reader) {
           throw new Error('No response stream available');
@@ -176,7 +196,6 @@ export default function ChatPage() {
 
         const decoder = new TextDecoder();
         let accumulatedContent = '';
-        let meta: Record<string, unknown> = {};
         let lineBuffer = ''; // Buffer for incomplete lines spanning chunks
 
         // Read the stream
@@ -194,33 +213,61 @@ export default function ChatPage() {
 
           for (const line of lines) {
             if (!line.trim()) continue;
-            try {
-              const parsed = JSON.parse(line);
 
-              if (parsed.type === 'chunk' && parsed.content) {
-                accumulatedContent += parsed.content;
-                setStreamingContent(accumulatedContent);
-              } else if (parsed.type === 'done') {
-                meta = parsed.meta || {};
+            // Handle SSE format: "data: {JSON}" or special markers
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6); // Remove "data: " prefix
+
+              if (data === '[DONE]') continue;
+
+              try {
+                const parsed = JSON.parse(data);
+
+                // Handle AI SDK text-delta events
+                if (parsed.type === 'text-delta' && parsed.delta) {
+                  accumulatedContent += parsed.delta;
+                  setStreamingContent(accumulatedContent);
+                }
+                // Also handle alternative formats
+                else if (parsed.type === 'text' && parsed.text) {
+                  accumulatedContent += parsed.text;
+                  setStreamingContent(accumulatedContent);
+                }
+              } catch {
+                // Skip non-JSON data lines
               }
-            } catch {
-              // Skip malformed JSON lines (shouldn't happen with proper buffering)
-              console.warn('Failed to parse NDJSON line:', line.substring(0, 100));
+            }
+            // Handle raw JSON lines (fallback for NDJSON format)
+            else if (line.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(line);
+                if (parsed.type === 'chunk' && parsed.content) {
+                  accumulatedContent += parsed.content;
+                  setStreamingContent(accumulatedContent);
+                }
+              } catch {
+                // Skip malformed JSON
+              }
             }
           }
         }
 
         // Process any remaining buffered content
         if (lineBuffer.trim()) {
-          try {
-            const parsed = JSON.parse(lineBuffer);
-            if (parsed.type === 'chunk' && parsed.content) {
-              accumulatedContent += parsed.content;
-            } else if (parsed.type === 'done') {
-              meta = parsed.meta || {};
+          if (lineBuffer.startsWith('data: ')) {
+            const data = lineBuffer.slice(6);
+            if (data !== '[DONE]') {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.type === 'text-delta' && parsed.delta) {
+                  accumulatedContent += parsed.delta;
+                } else if (parsed.type === 'text' && parsed.text) {
+                  accumulatedContent += parsed.text;
+                }
+              } catch {
+                // Final buffer wasn't valid JSON
+              }
             }
-          } catch {
-            // Final buffer wasn't valid JSON
           }
         }
 
@@ -262,7 +309,7 @@ export default function ChatPage() {
         setStreamingContent('');
       }
     },
-    [isLoading, isStreaming, addChatMessage, sessionId, documentContext, settings.systemPrompt]
+    [isLoading, isStreaming, addChatMessage, sessionId, documentContext, settings.systemPrompt, chatPatientContext, chatHistory]
   );
 
   // Handle document upload - uploads to /api/documents/upload
@@ -295,101 +342,7 @@ export default function ChatPage() {
     [addSessionDocument]
   );
 
-  // Handle document analysis - uploads and analyzes via /api/documents/upload (PHI-safe local OCR)
-  const handleAnalyze = useCallback(
-    async (file: File) => {
-      setIsUploadOpen(false);
-      setIsLoading(true);
-
-      // Add message about the upload
-      addChatMessage({
-        role: 'user',
-        content: `I've uploaded a document for analysis: ${file.name}`,
-      });
-
-      // Add to session documents
-      addSessionDocument({
-        name: file.name,
-        type: file.type,
-      });
-
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('autoAnalyze', 'true');
-
-        const response = await fetch('/api/documents/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error(`Analysis failed: ${response.status}`);
-        }
-
-        const result = await response.json();
-
-        // Store document context for follow-up questions
-        if (result.rawText) {
-          setDocumentContext({
-            fileName: file.name,
-            rawText: result.rawText,
-            summary: result.summary,
-          });
-        }
-
-        // Build analysis response
-        let analysisContent = `I've analyzed your document "${file.name}".\n\n`;
-
-        if (result.summary) {
-          analysisContent += `**Summary:**\n${result.summary}\n\n`;
-        }
-
-        if (result.analysis) {
-          if (result.analysis.findings && result.analysis.findings.length > 0) {
-            analysisContent += `**Key Findings:**\n`;
-            result.analysis.findings.forEach((finding: { name: string; value: string; interpretation?: string }, i: number) => {
-              analysisContent += `${i + 1}. ${finding.name}: ${finding.value}`;
-              if (finding.interpretation) {
-                analysisContent += ` - ${finding.interpretation}`;
-              }
-              analysisContent += '\n';
-            });
-            analysisContent += '\n';
-          }
-
-          if (result.analysis.recommendations && result.analysis.recommendations.length > 0) {
-            analysisContent += `**Recommendations:**\n`;
-            result.analysis.recommendations.forEach((rec: string, i: number) => {
-              analysisContent += `${i + 1}. ${rec}\n`;
-            });
-          }
-        }
-
-        if (result.warnings && result.warnings.length > 0) {
-          analysisContent += `\n**Notes:** ${result.warnings.join(', ')}`;
-        }
-
-        analysisContent += '\n\nIs there anything specific about this document you would like me to explain further?';
-
-        addChatMessage({
-          role: 'assistant',
-          content: analysisContent,
-        });
-      } catch (error) {
-        console.error('Document analysis error:', error);
-        addChatMessage({
-          role: 'assistant',
-          content: `I've received your document "${file.name}" but encountered an issue during analysis. Please try again or describe the document contents in your message.`,
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [addChatMessage, addSessionDocument]
-  );
-
-  // Handle document analysis with Vision AI (sends image to cloud - NOT PHI-safe)
+  // Handle document analysis with Vision AI
   const handleAnalyzeWithVision = useCallback(
     async (file: File) => {
       setIsUploadOpen(false);
@@ -398,7 +351,7 @@ export default function ChatPage() {
       // Add message about the upload with Vision AI notice
       addChatMessage({
         role: 'user',
-        content: `I've uploaded a document for Vision AI analysis: ${file.name}`,
+        content: `I've uploaded a document for your analysis: ${file.name}`,
       });
 
       // Add to session documents
@@ -664,7 +617,6 @@ export default function ChatPage() {
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         onUpload={handleUpload}
-        onAnalyze={handleAnalyze}
         onAnalyzeWithVision={handleAnalyzeWithVision}
       />
     </div>
