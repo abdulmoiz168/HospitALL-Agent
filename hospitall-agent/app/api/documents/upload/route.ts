@@ -419,36 +419,110 @@ export async function POST(req: Request) {
     let extractionMethod = "";
     let visionAnalysis: string | null = null;
 
-    // VISION MODE: Send image directly to Gemini for analysis (NOT PHI-safe)
-    if (useVision && mimeType.startsWith("image/")) {
+    // VISION MODE: Send document to Gemini for analysis (NOT PHI-safe)
+    if (useVision) {
       try {
-        const visionResult = await analyzeWithVision(buffer, mimeType, file.name);
-        rawText = visionResult.text;
-        visionAnalysis = visionResult.analysis;
-        extractionMethod = "vision_ai";
-        warnings.push(...visionResult.warnings);
+        // For PDFs, convert all pages to images for Vision AI (parallel processing)
+        if (mimeType === SUPPORTED_TYPES.pdf) {
+          const { pdf: pdfToImages } = await import("pdf-to-img");
+          const doc = await pdfToImages(buffer, { scale: 1.5 }); // Reduced scale for faster processing
 
-        // Return vision analysis result (no PHI sanitization - user acknowledged the risk)
-        return NextResponse.json({
-          success: true,
-          fileName: file.name,
-          fileType: mimeType,
-          fileSize: file.size,
-          extractionMethod,
-          language,
-          rawText, // Not sanitized - vision mode user accepted PHI risk
-          rawTextContainedPhi: false, // Not checked in vision mode
-          summary: visionAnalysis,
-          analysis: null, // Vision provides its own analysis
-          visionAnalysis, // Full vision AI analysis
-          patientId: patientId || null,
-          warnings: warnings.length > 0 ? warnings : undefined,
-          usedVisionAI: true,
-        });
+          // Collect page buffers first (up to MAX_OCR_PAGES)
+          const pageBuffers: Buffer[] = [];
+          for await (const pageImage of doc) {
+            if (pageBuffers.length >= MAX_OCR_PAGES) {
+              warnings.push(`Vision AI limited to first ${MAX_OCR_PAGES} pages.`);
+              break;
+            }
+            pageBuffers.push(Buffer.from(pageImage));
+          }
+
+          if (pageBuffers.length > 0) {
+            // Process all pages in parallel for speed
+            const visionPromises = pageBuffers.map((pageBuffer, idx) =>
+              analyzeWithVision(pageBuffer, "image/png", `${file.name} (page ${idx + 1})`)
+                .then((result) => ({ success: true as const, result, idx }))
+                .catch((err) => ({ success: false as const, error: err, idx }))
+            );
+
+            const results = await Promise.all(visionPromises);
+
+            // Gather successful results in order
+            const pageResults: { text: string; analysis: string }[] = [];
+            for (const res of results.sort((a, b) => a.idx - b.idx)) {
+              if (res.success) {
+                pageResults.push({
+                  text: res.result.text,
+                  analysis: res.result.analysis,
+                });
+                if (res.idx === 0) {
+                  warnings.push(...res.result.warnings);
+                }
+              } else {
+                warnings.push(`Page ${res.idx + 1} analysis failed`);
+              }
+            }
+
+            if (pageResults.length > 0) {
+              // Combine all pages
+              rawText = pageResults
+                .map((r, i) => `--- Page ${i + 1} ---\n${r.text}`)
+                .join("\n\n");
+              visionAnalysis = pageResults
+                .map((r, i) => `## Page ${i + 1}\n${r.analysis}`)
+                .join("\n\n");
+              extractionMethod = "vision_ai_pdf";
+              warnings.push(`PDF analyzed via Vision AI (${pageResults.length} page${pageResults.length > 1 ? 's' : ''} processed in parallel)`);
+
+              return NextResponse.json({
+                success: true,
+                fileName: file.name,
+                fileType: mimeType,
+                fileSize: file.size,
+                extractionMethod,
+                language,
+                rawText,
+                rawTextContainedPhi: false,
+                summary: visionAnalysis,
+                analysis: null,
+                visionAnalysis,
+                patientId: patientId || null,
+                pageCount: pageResults.length,
+                warnings: warnings.length > 0 ? warnings : undefined,
+                usedVisionAI: true,
+              });
+            }
+          }
+        } else if (mimeType.startsWith("image/")) {
+          // Direct image Vision AI analysis
+          const visionResult = await analyzeWithVision(buffer, mimeType, file.name);
+          rawText = visionResult.text;
+          visionAnalysis = visionResult.analysis;
+          extractionMethod = "vision_ai";
+          warnings.push(...visionResult.warnings);
+
+          // Return vision analysis result (no PHI sanitization - user acknowledged the risk)
+          return NextResponse.json({
+            success: true,
+            fileName: file.name,
+            fileType: mimeType,
+            fileSize: file.size,
+            extractionMethod,
+            language,
+            rawText, // Not sanitized - vision mode user accepted PHI risk
+            rawTextContainedPhi: false, // Not checked in vision mode
+            summary: visionAnalysis,
+            analysis: null, // Vision provides its own analysis
+            visionAnalysis, // Full vision AI analysis
+            patientId: patientId || null,
+            warnings: warnings.length > 0 ? warnings : undefined,
+            usedVisionAI: true,
+          });
+        }
       } catch (error) {
         console.error("Vision AI error:", error);
-        warnings.push("Vision AI failed. Falling back to local OCR.");
-        // Fall through to local OCR
+        warnings.push("Vision AI failed. Falling back to local extraction.");
+        // Fall through to local extraction
       }
     }
 
