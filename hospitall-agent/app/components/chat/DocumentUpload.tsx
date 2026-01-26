@@ -242,6 +242,9 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
     .map((type) => FILE_TYPE_LABELS[type])
     .filter(Boolean);
 
+  // Check if file is an image (vision AI works best with images)
+  const isImageFile = selectedFile?.type.startsWith('image/');
+
   if (!isOpen) return null;
 
   return (
@@ -500,7 +503,7 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({
               >
                 Cancel
               </button>
-              {status === 'success' && onAnalyzeWithVision && (
+              {status === 'success' && onAnalyzeWithVision && isImageFile && (
                 <button
                   type="button"
                   className={styles.analyzeButton}

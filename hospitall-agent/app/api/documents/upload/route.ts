@@ -283,8 +283,7 @@ const generateSummary = (
 };
 
 /**
- * Analyze document with Vision AI (Gemini) - sends document to cloud
- * Supports both images and PDFs (Gemini natively processes PDFs)
+ * Analyze image with Vision AI (Gemini) - sends image to cloud
  * WARNING: This sends PHI to cloud services - not HIPAA compliant without BAA
  */
 const analyzeWithVision = async (
@@ -305,18 +304,27 @@ const analyzeWithVision = async (
   });
 
   // Strip vercel/ prefix if present (AI Gateway expects provider/model format)
-  const rawModel = process.env.HOSPITALL_LLM_MODEL ?? "google/gemini-2.0-flash";
+  const rawModel = process.env.HOSPITALL_LLM_MODEL ?? "google/gemini-3-flash";
   const model = rawModel.startsWith("vercel/") ? rawModel.slice(7) : rawModel;
 
   // Convert buffer to base64
-  const base64Data = buffer.toString("base64");
-  const dataUrl = `data:${mimeType};base64,${base64Data}`;
+  const base64Image = buffer.toString("base64");
+  const dataUrl = `data:${mimeType};base64,${base64Image}`;
 
-  // Determine content type based on mime type
-  const isPdf = mimeType === "application/pdf";
-  const isImage = mimeType.startsWith("image/");
-
-  const prompt = `You are a medical document analyst. Analyze this medical document and provide:
+  try {
+    const result = await generateText({
+      model: openai(model),
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              image: dataUrl,
+            },
+            {
+              type: "text",
+              text: `You are a medical document analyst. Analyze this medical document image and provide:
 
 1. **EXTRACTED TEXT**: Extract ALL text from the document exactly as written, preserving the structure (tables, values, reference ranges, etc.)
 
@@ -330,41 +338,9 @@ const analyzeWithVision = async (
 IMPORTANT:
 - Extract the EXACT numeric values from the document - do not estimate or approximate
 - Preserve all patient information, dates, and reference ranges exactly as shown
-- Format your response clearly with sections for "EXTRACTED TEXT" and "ANALYSIS"
-- If this is a multi-page document, analyze ALL pages comprehensively`;
-
-  try {
-    // Build content array based on file type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const contentParts: any[] = [];
-
-    if (isPdf) {
-      // Gemini can process PDFs directly via file type
-      contentParts.push({
-        type: "file",
-        data: base64Data,
-        mimeType: "application/pdf",
-      });
-    } else if (isImage) {
-      contentParts.push({
-        type: "image",
-        image: dataUrl,
-      });
-    } else {
-      throw new Error(`Unsupported file type for Vision AI: ${mimeType}`);
-    }
-
-    contentParts.push({
-      type: "text",
-      text: prompt,
-    });
-
-    const result = await generateText({
-      model: openai(model),
-      messages: [
-        {
-          role: "user",
-          content: contentParts,
+- Format your response clearly with sections for "EXTRACTED TEXT" and "ANALYSIS"`,
+            },
+          ],
         },
       ],
     });
@@ -443,65 +419,36 @@ export async function POST(req: Request) {
     let extractionMethod = "";
     let visionAnalysis: string | null = null;
 
-    // VISION MODE: Send document to Gemini for analysis (NOT PHI-safe)
-    // Gemini natively supports PDFs - no conversion needed
-    if (useVision) {
+    // VISION MODE: Send image directly to Gemini for analysis (NOT PHI-safe)
+    if (useVision && mimeType.startsWith("image/")) {
       try {
-        // For PDFs, send directly to Gemini (native PDF support)
-        if (mimeType === SUPPORTED_TYPES.pdf) {
-          const visionResult = await analyzeWithVision(buffer, mimeType, file.name);
-          rawText = visionResult.text;
-          visionAnalysis = visionResult.analysis;
-          extractionMethod = "vision_ai_pdf";
-          warnings.push(...visionResult.warnings);
-          warnings.push("PDF analyzed via Vision AI (native PDF processing)");
+        const visionResult = await analyzeWithVision(buffer, mimeType, file.name);
+        rawText = visionResult.text;
+        visionAnalysis = visionResult.analysis;
+        extractionMethod = "vision_ai";
+        warnings.push(...visionResult.warnings);
 
-          return NextResponse.json({
-            success: true,
-            fileName: file.name,
-            fileType: mimeType,
-            fileSize: file.size,
-            extractionMethod,
-            language,
-            rawText,
-            rawTextContainedPhi: false,
-            summary: visionAnalysis,
-            analysis: null,
-            visionAnalysis,
-            patientId: patientId || null,
-            warnings: warnings.length > 0 ? warnings : undefined,
-            usedVisionAI: true,
-          });
-        } else if (mimeType.startsWith("image/")) {
-          // Direct image Vision AI analysis
-          const visionResult = await analyzeWithVision(buffer, mimeType, file.name);
-          rawText = visionResult.text;
-          visionAnalysis = visionResult.analysis;
-          extractionMethod = "vision_ai";
-          warnings.push(...visionResult.warnings);
-
-          // Return vision analysis result (no PHI sanitization - user acknowledged the risk)
-          return NextResponse.json({
-            success: true,
-            fileName: file.name,
-            fileType: mimeType,
-            fileSize: file.size,
-            extractionMethod,
-            language,
-            rawText, // Not sanitized - vision mode user accepted PHI risk
-            rawTextContainedPhi: false, // Not checked in vision mode
-            summary: visionAnalysis,
-            analysis: null, // Vision provides its own analysis
-            visionAnalysis, // Full vision AI analysis
-            patientId: patientId || null,
-            warnings: warnings.length > 0 ? warnings : undefined,
-            usedVisionAI: true,
-          });
-        }
+        // Return vision analysis result (no PHI sanitization - user acknowledged the risk)
+        return NextResponse.json({
+          success: true,
+          fileName: file.name,
+          fileType: mimeType,
+          fileSize: file.size,
+          extractionMethod,
+          language,
+          rawText, // Not sanitized - vision mode user accepted PHI risk
+          rawTextContainedPhi: false, // Not checked in vision mode
+          summary: visionAnalysis,
+          analysis: null, // Vision provides its own analysis
+          visionAnalysis, // Full vision AI analysis
+          patientId: patientId || null,
+          warnings: warnings.length > 0 ? warnings : undefined,
+          usedVisionAI: true,
+        });
       } catch (error) {
         console.error("Vision AI error:", error);
-        warnings.push("Vision AI failed. Falling back to local extraction.");
-        // Fall through to local extraction
+        warnings.push("Vision AI failed. Falling back to local OCR.");
+        // Fall through to local OCR
       }
     }
 
