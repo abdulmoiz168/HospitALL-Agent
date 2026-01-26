@@ -283,7 +283,8 @@ const generateSummary = (
 };
 
 /**
- * Analyze image with Vision AI (Gemini) - sends image to cloud
+ * Analyze document with Vision AI (Gemini) - sends document to cloud
+ * Supports both images and PDFs (Gemini natively processes PDFs)
  * WARNING: This sends PHI to cloud services - not HIPAA compliant without BAA
  */
 const analyzeWithVision = async (
@@ -304,27 +305,18 @@ const analyzeWithVision = async (
   });
 
   // Strip vercel/ prefix if present (AI Gateway expects provider/model format)
-  const rawModel = process.env.HOSPITALL_LLM_MODEL ?? "google/gemini-3-flash";
+  const rawModel = process.env.HOSPITALL_LLM_MODEL ?? "google/gemini-2.0-flash";
   const model = rawModel.startsWith("vercel/") ? rawModel.slice(7) : rawModel;
 
   // Convert buffer to base64
-  const base64Image = buffer.toString("base64");
-  const dataUrl = `data:${mimeType};base64,${base64Image}`;
+  const base64Data = buffer.toString("base64");
+  const dataUrl = `data:${mimeType};base64,${base64Data}`;
 
-  try {
-    const result = await generateText({
-      model: openai(model),
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              image: dataUrl,
-            },
-            {
-              type: "text",
-              text: `You are a medical document analyst. Analyze this medical document image and provide:
+  // Determine content type based on mime type
+  const isPdf = mimeType === "application/pdf";
+  const isImage = mimeType.startsWith("image/");
+
+  const prompt = `You are a medical document analyst. Analyze this medical document and provide:
 
 1. **EXTRACTED TEXT**: Extract ALL text from the document exactly as written, preserving the structure (tables, values, reference ranges, etc.)
 
@@ -338,9 +330,41 @@ const analyzeWithVision = async (
 IMPORTANT:
 - Extract the EXACT numeric values from the document - do not estimate or approximate
 - Preserve all patient information, dates, and reference ranges exactly as shown
-- Format your response clearly with sections for "EXTRACTED TEXT" and "ANALYSIS"`,
-            },
-          ],
+- Format your response clearly with sections for "EXTRACTED TEXT" and "ANALYSIS"
+- If this is a multi-page document, analyze ALL pages comprehensively`;
+
+  try {
+    // Build content array based on file type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const contentParts: any[] = [];
+
+    if (isPdf) {
+      // Gemini can process PDFs directly via file type
+      contentParts.push({
+        type: "file",
+        data: base64Data,
+        mimeType: "application/pdf",
+      });
+    } else if (isImage) {
+      contentParts.push({
+        type: "image",
+        image: dataUrl,
+      });
+    } else {
+      throw new Error(`Unsupported file type for Vision AI: ${mimeType}`);
+    }
+
+    contentParts.push({
+      type: "text",
+      text: prompt,
+    });
+
+    const result = await generateText({
+      model: openai(model),
+      messages: [
+        {
+          role: "user",
+          content: contentParts,
         },
       ],
     });
@@ -420,79 +444,34 @@ export async function POST(req: Request) {
     let visionAnalysis: string | null = null;
 
     // VISION MODE: Send document to Gemini for analysis (NOT PHI-safe)
+    // Gemini natively supports PDFs - no conversion needed
     if (useVision) {
       try {
-        // For PDFs, convert all pages to images for Vision AI (parallel processing)
+        // For PDFs, send directly to Gemini (native PDF support)
         if (mimeType === SUPPORTED_TYPES.pdf) {
-          const { pdf: pdfToImages } = await import("pdf-to-img");
-          const doc = await pdfToImages(buffer, { scale: 1.5 }); // Reduced scale for faster processing
+          const visionResult = await analyzeWithVision(buffer, mimeType, file.name);
+          rawText = visionResult.text;
+          visionAnalysis = visionResult.analysis;
+          extractionMethod = "vision_ai_pdf";
+          warnings.push(...visionResult.warnings);
+          warnings.push("PDF analyzed via Vision AI (native PDF processing)");
 
-          // Collect page buffers first (up to MAX_OCR_PAGES)
-          const pageBuffers: Buffer[] = [];
-          for await (const pageImage of doc) {
-            if (pageBuffers.length >= MAX_OCR_PAGES) {
-              warnings.push(`Vision AI limited to first ${MAX_OCR_PAGES} pages.`);
-              break;
-            }
-            pageBuffers.push(Buffer.from(pageImage));
-          }
-
-          if (pageBuffers.length > 0) {
-            // Process all pages in parallel for speed
-            const visionPromises = pageBuffers.map((pageBuffer, idx) =>
-              analyzeWithVision(pageBuffer, "image/png", `${file.name} (page ${idx + 1})`)
-                .then((result) => ({ success: true as const, result, idx }))
-                .catch((err) => ({ success: false as const, error: err, idx }))
-            );
-
-            const results = await Promise.all(visionPromises);
-
-            // Gather successful results in order
-            const pageResults: { text: string; analysis: string }[] = [];
-            for (const res of results.sort((a, b) => a.idx - b.idx)) {
-              if (res.success) {
-                pageResults.push({
-                  text: res.result.text,
-                  analysis: res.result.analysis,
-                });
-                if (res.idx === 0) {
-                  warnings.push(...res.result.warnings);
-                }
-              } else {
-                warnings.push(`Page ${res.idx + 1} analysis failed`);
-              }
-            }
-
-            if (pageResults.length > 0) {
-              // Combine all pages
-              rawText = pageResults
-                .map((r, i) => `--- Page ${i + 1} ---\n${r.text}`)
-                .join("\n\n");
-              visionAnalysis = pageResults
-                .map((r, i) => `## Page ${i + 1}\n${r.analysis}`)
-                .join("\n\n");
-              extractionMethod = "vision_ai_pdf";
-              warnings.push(`PDF analyzed via Vision AI (${pageResults.length} page${pageResults.length > 1 ? 's' : ''} processed in parallel)`);
-
-              return NextResponse.json({
-                success: true,
-                fileName: file.name,
-                fileType: mimeType,
-                fileSize: file.size,
-                extractionMethod,
-                language,
-                rawText,
-                rawTextContainedPhi: false,
-                summary: visionAnalysis,
-                analysis: null,
-                visionAnalysis,
-                patientId: patientId || null,
-                pageCount: pageResults.length,
-                warnings: warnings.length > 0 ? warnings : undefined,
-                usedVisionAI: true,
-              });
-            }
-          }
+          return NextResponse.json({
+            success: true,
+            fileName: file.name,
+            fileType: mimeType,
+            fileSize: file.size,
+            extractionMethod,
+            language,
+            rawText,
+            rawTextContainedPhi: false,
+            summary: visionAnalysis,
+            analysis: null,
+            visionAnalysis,
+            patientId: patientId || null,
+            warnings: warnings.length > 0 ? warnings : undefined,
+            usedVisionAI: true,
+          });
         } else if (mimeType.startsWith("image/")) {
           // Direct image Vision AI analysis
           const visionResult = await analyzeWithVision(buffer, mimeType, file.name);
