@@ -61,6 +61,7 @@ export async function updateSession(request: NextRequest) {
     "/api/cron/cleanup", // Cron jobs use secret token auth
     "/api/chat", // Allow unauthenticated access - route handles auth internally
     "/api/documents/upload", // Allow unauthenticated access - route handles auth internally
+    "/api/settings/system-prompt", // Public endpoint for system prompt (uses service role internally)
   ];
 
   const isPublicRoute = publicRoutes.some(
