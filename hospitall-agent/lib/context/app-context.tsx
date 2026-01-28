@@ -9,7 +9,7 @@ import React, {
   ReactNode,
 } from "react";
 import { Patient } from "@/mastra/schemas/patient";
-import { Settings, FeatureFlags, DEFAULT_SETTINGS } from "@/mastra/data/default-settings";
+import { Settings, FeatureFlags, DEFAULT_SETTINGS, SETTINGS_VERSION } from "@/mastra/data/default-settings";
 import { MOCK_PATIENTS } from "@/mastra/data/patients";
 
 // ============================================================================
@@ -396,15 +396,22 @@ function SettingsProvider({ children }: { children: ReactNode }) {
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          // Merge with defaults to ensure all fields exist
-          setSettings({
-            ...DEFAULT_SETTINGS,
-            ...parsed,
-            featureFlags: {
-              ...DEFAULT_SETTINGS.featureFlags,
-              ...parsed.featureFlags,
-            },
-          });
+          // Check version - if outdated, reset to defaults
+          if (!parsed.version || parsed.version < SETTINGS_VERSION) {
+            console.log(`Settings version outdated (${parsed.version || 'none'} < ${SETTINGS_VERSION}), resetting to defaults`);
+            localStorage.removeItem(SETTINGS_STORAGE_KEY);
+            // Keep defaults (already set in useState)
+          } else {
+            // Merge with defaults to ensure all fields exist
+            setSettings({
+              ...DEFAULT_SETTINGS,
+              ...parsed,
+              featureFlags: {
+                ...DEFAULT_SETTINGS.featureFlags,
+                ...parsed.featureFlags,
+              },
+            });
+          }
         } catch (e) {
           console.error("Failed to parse settings from localStorage:", e);
         }

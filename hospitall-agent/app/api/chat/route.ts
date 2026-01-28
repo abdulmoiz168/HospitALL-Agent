@@ -94,6 +94,8 @@ type ChatRequest = {
   // Legacy format support
   message?: string;
   sessionId?: string;
+  // System prompt from admin settings
+  systemPrompt?: string;
   // Patient context
   patientContext?: PatientContext;
   // Memory configuration
@@ -216,10 +218,23 @@ export async function POST(req: Request) {
     console.log("[api/chat] Memory configured:", !!memory);
     console.log("[api/chat] Thread ID:", threadId);
     console.log("[api/chat] Patient context:", body.patientContext ? body.patientContext.name : "none");
+    console.log("[api/chat] Custom system prompt:", body.systemPrompt ? "yes" : "no");
 
-    // Build additional instructions with patient context
-    const additionalInstructions = body.patientContext
-      ? formatPatientContext(body.patientContext)
+    // Build instructions: system prompt from admin settings + patient context
+    const instructionParts: string[] = [];
+
+    // Add custom system prompt from admin settings (this overrides agent defaults)
+    if (body.systemPrompt) {
+      instructionParts.push(body.systemPrompt);
+    }
+
+    // Add patient context if available
+    if (body.patientContext) {
+      instructionParts.push(formatPatientContext(body.patientContext));
+    }
+
+    const additionalInstructions = instructionParts.length > 0
+      ? instructionParts.join("\n\n")
       : undefined;
 
     // Use handleChatStream for full agent mode with AI SDK streaming
