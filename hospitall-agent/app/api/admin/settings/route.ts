@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, getUserProfile } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/supabase/server";
 import { createServiceClientRequired } from "@/lib/supabase/server";
+import { DEFAULT_SYSTEM_PROMPT } from "@/mastra/data/default-settings";
 
 export const runtime = "nodejs";
 
 // Settings interface
 interface AdminSettings {
+  systemPrompt: string;
   llmEnabled: boolean;
   llmProvider: "openai" | "anthropic" | "azure" | "google";
   llmModel: string;
@@ -28,6 +30,7 @@ interface AdminSettings {
 
 // Default settings
 const DEFAULT_SETTINGS: AdminSettings = {
+  systemPrompt: DEFAULT_SYSTEM_PROMPT,
   llmEnabled: process.env.HOSPITALL_USE_LLM === "1",
   llmProvider: "google",
   llmModel: process.env.HOSPITALL_LLM_MODEL || "google/gemini-3-flash-preview",

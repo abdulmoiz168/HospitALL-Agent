@@ -167,6 +167,24 @@
   border-radius: var(--radius-md);
 }
 
+.errorMessage {
+  font-size: var(--text-sm);
+  color: var(--error-dark);
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  background-color: var(--error-light);
+  border-radius: var(--radius-md);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  font-size: var(--text-base);
+  color: var(--foreground-muted);
+}
+
 /* ==========================================================================
    Feature Flags
    ========================================================================== */

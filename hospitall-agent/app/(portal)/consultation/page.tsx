@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { usePatient, useSettings } from '@/lib/hooks';
+import { usePatient } from '@/lib/hooks';
 import {
   MessageBubble,
   ChatInput,
@@ -34,8 +34,6 @@ export default function ChatPage() {
     chatPatientContext,
   } = usePatient();
 
-  // Settings context for system prompt
-  const { settings } = useSettings();
 
   // Local state
   const [inputValue, setInputValue] = useState('');
@@ -173,7 +171,6 @@ export default function ChatPage() {
             // Send full message history for conversation context
             messages: messagesForApi,
             sessionId,
-            systemPrompt: settings.systemPrompt,
             // Include document context if available for follow-up questions
             documentContext: documentContext || undefined,
             // Include patient context for personalized responses
@@ -309,7 +306,7 @@ export default function ChatPage() {
         setStreamingContent('');
       }
     },
-    [isLoading, isStreaming, addChatMessage, sessionId, documentContext, settings.systemPrompt, chatPatientContext, chatHistory]
+    [isLoading, isStreaming, addChatMessage, sessionId, documentContext, chatPatientContext, chatHistory]
   );
 
   // Handle document upload - uploads to /api/documents/upload

@@ -3,10 +3,48 @@ import { handleChatStream } from "@mastra/ai-sdk";
 import { createUIMessageStreamResponse } from "ai";
 import { mastra } from "@/mastra";
 import { memory } from "@/mastra/config/memory";
-import { getUser } from "@/lib/supabase/server";
+import { getUser, createServiceClient } from "@/lib/supabase/server";
 import { logConversation, logError } from "@/lib/services/logging-service";
+import { DEFAULT_SYSTEM_PROMPT } from "@/mastra/data/default-settings";
 
 export const runtime = "nodejs";
+
+// Cache the system prompt to reduce DB calls (60 second TTL)
+let systemPromptCache: { value: string; timestamp: number } | null = null;
+const CACHE_TTL_MS = 60 * 1000;
+
+// Fetch system prompt from Supabase (with caching)
+async function getSystemPrompt(): Promise<string> {
+  // Check cache first
+  if (systemPromptCache && Date.now() - systemPromptCache.timestamp < CACHE_TTL_MS) {
+    return systemPromptCache.value;
+  }
+
+  try {
+    const supabase = createServiceClient();
+    if (!supabase) {
+      return DEFAULT_SYSTEM_PROMPT;
+    }
+
+    const { data, error } = await supabase
+      .from("admin_settings")
+      .select("value")
+      .eq("key", "systemPrompt")
+      .single();
+
+    if (error || !data) {
+      systemPromptCache = { value: DEFAULT_SYSTEM_PROMPT, timestamp: Date.now() };
+      return DEFAULT_SYSTEM_PROMPT;
+    }
+
+    const prompt = typeof data.value === "string" ? data.value : DEFAULT_SYSTEM_PROMPT;
+    systemPromptCache = { value: prompt, timestamp: Date.now() };
+    return prompt;
+  } catch (error) {
+    console.error("[api/chat] Error fetching system prompt:", error);
+    return DEFAULT_SYSTEM_PROMPT;
+  }
+}
 
 // CORS and streaming headers
 const corsHeaders = {
@@ -94,8 +132,6 @@ type ChatRequest = {
   // Legacy format support
   message?: string;
   sessionId?: string;
-  // System prompt from admin settings
-  systemPrompt?: string;
   // Patient context
   patientContext?: PatientContext;
   // Memory configuration
@@ -218,24 +254,20 @@ export async function POST(req: Request) {
     console.log("[api/chat] Memory configured:", !!memory);
     console.log("[api/chat] Thread ID:", threadId);
     console.log("[api/chat] Patient context:", body.patientContext ? body.patientContext.name : "none");
-    console.log("[api/chat] Custom system prompt:", body.systemPrompt ? "yes" : "no");
 
-    // Build instructions: system prompt from admin settings + patient context
-    const instructionParts: string[] = [];
+    // Fetch system prompt from Supabase (admin-configured, cached)
+    const systemPrompt = await getSystemPrompt();
+    console.log("[api/chat] System prompt loaded, length:", systemPrompt.length);
 
-    // Add custom system prompt from admin settings (this overrides agent defaults)
-    if (body.systemPrompt) {
-      instructionParts.push(body.systemPrompt);
-    }
+    // Build instructions: system prompt from Supabase + patient context
+    const instructionParts: string[] = [systemPrompt];
 
     // Add patient context if available
     if (body.patientContext) {
       instructionParts.push(formatPatientContext(body.patientContext));
     }
 
-    const additionalInstructions = instructionParts.length > 0
-      ? instructionParts.join("\n\n")
-      : undefined;
+    const additionalInstructions = instructionParts.join("\n\n");
 
     // Use handleChatStream for full agent mode with AI SDK streaming
     const stream = await handleChatStream({
@@ -251,10 +283,8 @@ export async function POST(req: Request) {
           },
         }),
       },
-      // Pass patient context as additional instructions
-      defaultOptions: additionalInstructions
-        ? { instructions: additionalInstructions }
-        : undefined,
+      // Pass system prompt + patient context as instructions
+      defaultOptions: { instructions: additionalInstructions },
     });
 
     console.log("[api/chat] Stream created successfully");

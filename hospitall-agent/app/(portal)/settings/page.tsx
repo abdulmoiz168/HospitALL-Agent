@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
-import { useSettings } from '@/lib/hooks';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRole } from '@/lib/hooks';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
@@ -61,42 +60,89 @@ const LockIcon = () => (
  * Admin Settings Page
  *
  * Settings management page for administrators including:
- * - System prompt editor
+ * - System prompt editor (saved to Supabase, applies to ALL users)
  */
 export default function SettingsPage() {
   const { isAdmin } = useRole();
-  const { settings, updateSystemPrompt } = useSettings();
 
-  // Local state for unsaved changes
-  const [localPrompt, setLocalPrompt] = useState(settings.systemPrompt);
+  // State for system prompt
+  const [serverPrompt, setServerPrompt] = useState<string>(DEFAULT_SYSTEM_PROMPT);
+  const [localPrompt, setLocalPrompt] = useState<string>(DEFAULT_SYSTEM_PROMPT);
+  const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Sync local state with settings when they change
-  React.useEffect(() => {
-    setLocalPrompt(settings.systemPrompt);
-  }, [settings]);
+  // Fetch system prompt from server on mount
+  useEffect(() => {
+    async function fetchSystemPrompt() {
+      try {
+        const response = await fetch('/api/admin/settings');
+        if (response.ok) {
+          const data = await response.json();
+          const prompt = data.settings?.systemPrompt || DEFAULT_SYSTEM_PROMPT;
+          setServerPrompt(prompt);
+          setLocalPrompt(prompt);
+        } else if (response.status === 401 || response.status === 403) {
+          // Not authorized, use default
+          setServerPrompt(DEFAULT_SYSTEM_PROMPT);
+          setLocalPrompt(DEFAULT_SYSTEM_PROMPT);
+        }
+      } catch (error) {
+        console.error('Failed to fetch system prompt:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    if (isAdmin) {
+      fetchSystemPrompt();
+    } else {
+      setIsLoading(false);
+    }
+  }, [isAdmin]);
 
   // Check if there are unsaved changes
   const hasUnsavedChanges = useMemo(() => {
-    return localPrompt !== settings.systemPrompt;
-  }, [localPrompt, settings.systemPrompt]);
+    return localPrompt !== serverPrompt;
+  }, [localPrompt, serverPrompt]);
 
   // Character count for system prompt
   const characterCount = localPrompt.length;
   const maxCharacters = 10000;
 
-  // Handle system prompt save
-  const handleSavePrompt = useCallback(() => {
+  // Handle system prompt save to Supabase via API
+  const handleSavePrompt = useCallback(async () => {
     setSaveStatus('saving');
+    setErrorMessage(null);
+
     try {
-      updateSystemPrompt(localPrompt);
+      const response = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          settings: {
+            systemPrompt: localPrompt,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to save settings');
+      }
+
+      setServerPrompt(localPrompt);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch {
+    } catch (error) {
+      console.error('Failed to save system prompt:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to save');
       setSaveStatus('error');
       setTimeout(() => setSaveStatus('idle'), 3000);
     }
-  }, [localPrompt, updateSystemPrompt]);
+  }, [localPrompt]);
 
   // Handle reset to default
   const handleResetPrompt = useCallback(() => {
@@ -121,6 +167,14 @@ export default function SettingsPage() {
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className={styles.settingsPage}>
+        <div className={styles.loading}>Loading settings...</div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.settingsPage}>
       {/* Page Header */}
@@ -131,7 +185,7 @@ export default function SettingsPage() {
         <div className={styles.headerContent}>
           <h1 className={styles.pageTitle}>Admin Settings</h1>
           <p className={styles.pageDescription}>
-            Configure the AI assistant&apos;s system prompt.
+            Configure the AI assistant&apos;s system prompt. Changes apply to ALL users.
           </p>
         </div>
       </header>
@@ -144,6 +198,7 @@ export default function SettingsPage() {
               <h2 className={styles.sectionTitle}>System Prompt</h2>
               <p className={styles.sectionDescription}>
                 Configure the AI assistant&apos;s personality and behavior instructions.
+                This prompt is stored in the database and applies to all users.
               </p>
             </div>
 
@@ -180,16 +235,22 @@ export default function SettingsPage() {
                   variant="primary"
                   size="md"
                   onClick={handleSavePrompt}
-                  disabled={!hasUnsavedChanges}
+                  disabled={!hasUnsavedChanges || saveStatus === 'saving'}
                   loading={saveStatus === 'saving'}
                 >
-                  {saveStatus === 'saved' ? 'Saved!' : 'Save Changes'}
+                  {saveStatus === 'saved' ? 'Saved!' : saveStatus === 'error' ? 'Error' : 'Save Changes'}
                 </Button>
               </div>
 
               {hasUnsavedChanges && (
                 <p className={styles.unsavedWarning}>
                   You have unsaved changes to the system prompt.
+                </p>
+              )}
+
+              {errorMessage && (
+                <p className={styles.errorMessage}>
+                  {errorMessage}
                 </p>
               )}
             </div>
